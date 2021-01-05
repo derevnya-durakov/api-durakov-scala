@@ -1,5 +1,8 @@
 package durak.cards
 
+import durak.cards.CardSuit.Suits
+import durak.cards.CardValue.AceValue
+
 import scala.util.Random
 
 class CardDeck private(private var cards: List[Card]) {
@@ -39,19 +42,18 @@ class CardDeck private(private var cards: List[Card]) {
 }
 
 object CardDeck {
-  private val MAX_DECK_SIZE = 52;
-  private val ACE_VALUE = 14;
+  private val MaxDeckSize = 52
 
   def create36Dec: CardDeck = CardDeck(36)
 
   def apply(deckSize: Int): CardDeck = {
-    require(deckSize <= MAX_DECK_SIZE, s"Max deck size is $MAX_DECK_SIZE")
+    require(deckSize <= MaxDeckSize, s"Max deck size is $MaxDeckSize")
     require(deckSize > 0, "Deck size should be positive")
-    val suitsCount = CardSuit.suits.length;
+    val suitsCount = Suits.length;
     require(deckSize % suitsCount == 0, s"Cards amount should be divisible by $suitsCount")
     val cardsInSuit = deckSize / suitsCount
-    val values = (ACE_VALUE until (ACE_VALUE - cardsInSuit) by -1).map(value => new CardValue(value))
-    val cards = CardSuit.suits.flatMap(suit => values.map(value => new Card(suit, value)))
+    val values = (AceValue until (AceValue - cardsInSuit) by -1).map(value => new CardValue(value))
+    val cards = Suits.flatMap(suit => values.map(value => new Card(suit, value)))
     new CardDeck(cards)
   }
 

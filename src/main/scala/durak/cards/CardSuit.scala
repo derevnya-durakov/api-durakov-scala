@@ -19,5 +19,5 @@ class CardSuit(val name: String) {
 }
 
 object CardSuit {
-  val suits: List[CardSuit] = List("heart", "diamond", "club", "spade").map(n => new CardSuit(n))
+  val Suits: List[CardSuit] = List("heart", "diamond", "club", "spade").map(n => new CardSuit(n))
 }

@@ -17,3 +17,7 @@ class CardValue(val value: Int) {
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
+
+object CardValue {
+  val AceValue = 14
+}
