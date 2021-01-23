@@ -3,7 +3,7 @@ package durak
 import durak.cards.CardDeck
 
 object Main extends App {
-  val deck: CardDeck = CardDeck.create52Deck.shuffled
-  while (deck.nonEmpty)
-    println(deck.pop().get)
+//  val a = List(1,2,3,4,5)
+//  val value: List[Int] = a.take(10)
+//  println(value)
 }
