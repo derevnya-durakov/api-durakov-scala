@@ -28,5 +28,7 @@ libraryDependencies ++= Seq(
 )
 
 //Revolver.settings
-//enablePlugins(JavaAppPackaging)
+enablePlugins(JavaAppPackaging)
 mainClass in Compile := Some("dev.durak.Application")
+herokuAppName in Compile := "api-durakov-scala"
+herokuJdkVersion in Compile := "8"

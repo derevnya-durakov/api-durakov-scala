@@ -15,7 +15,7 @@ import sangria.slowlog.SlowLog
 
 import scala.util.{Failure, Success}
 
-object Server extends App with CorsSupport {
+object Application extends App with CorsSupport {
   implicit val system = ActorSystem("sangria-server")
 
   import system.dispatcher
