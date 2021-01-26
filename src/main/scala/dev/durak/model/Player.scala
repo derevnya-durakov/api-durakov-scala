@@ -2,4 +2,4 @@ package dev.durak.model
 
 import java.util.UUID
 
-class Player(val id: UUID, val accessToken: UUID, val nickname: String) extends Identifiable
+case class Player(id: UUID, accessToken: UUID, nickname: String) extends Identifiable

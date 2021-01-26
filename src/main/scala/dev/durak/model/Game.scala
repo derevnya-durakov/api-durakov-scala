@@ -4,16 +4,16 @@ import dev.durak.model.Suits.Suit
 
 import java.util.UUID
 
-class Game( val id: UUID,
-           val seed: Long,
-           val deck: List[Card],
-           val trumpSuit: Suit,
-           val players: List[Player],
-           val hands: List[Hand],
-           val field: List[CardPair],
-           val reboundSize: Int = 0,
-           val attacker: Player,
-           val defender: Player) extends Identifiable
+case class Game(id: UUID,
+                seed: Long,
+                deck: List[Card],
+                trumpSuit: Suit,
+                players: List[Player],
+                hands: List[Hand],
+                field: List[CardPair],
+                reboundSize: Int = 0,
+                attacker: Player,
+                defender: Player) extends Identifiable
 
 //object Game {
 //  private val InitialCardsList: List[Card] =

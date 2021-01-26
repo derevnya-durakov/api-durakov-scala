@@ -27,5 +27,5 @@ object PlayerRepository {
   )
 
   private def createPlayer(nickname: String): Player =
-    new Player(id = UUID.randomUUID(), accessToken = UUID.randomUUID(), nickname)
+    Player(id = UUID.randomUUID(), accessToken = UUID.randomUUID(), nickname)
 }

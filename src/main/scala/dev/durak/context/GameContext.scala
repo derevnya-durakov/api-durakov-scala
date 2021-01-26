@@ -12,13 +12,13 @@ class GameContext(val gameRepository: Repository[Game],
                   val playerRepository: Repository[Player]) {
   private val InitialCardsList: List[Card] =
     Ranks.values.toList.flatMap(
-      rank => Suits.values.toList.map(suit => new Card(suit, rank)))
+      rank => Suits.values.toList.map(suit => Card(suit, rank)))
   private val seed = 123L;
 
   private def authenticated[T](accessToken: UUID)(func: Player => T): T =
     func(playerRepository
       .find(_.accessToken == accessToken)
-      .getOrElse(throw new DurakException("Incorrect access token")))
+      .getOrElse(throw DurakException("Incorrect access token")))
 
   def currentGame(accessToken: UUID): Option[Game] =
     authenticated(accessToken) { signedPlayer =>
@@ -34,7 +34,7 @@ class GameContext(val gameRepository: Repository[Game],
       val players: List[Player] = playerIds.map(
         id => playerRepository
           .findById(id)
-          .getOrElse(throw new DurakException(s"Player $id not found")))
+          .getOrElse(throw DurakException(s"Player $id not found")))
       val deck = new Random(seed).shuffle(InitialCardsList)
       val id = UUID.randomUUID()
       val initialGame = new Game(
@@ -43,7 +43,7 @@ class GameContext(val gameRepository: Repository[Game],
         deck,
         trumpSuit = deck.last.suit,
         players,
-        hands = players.map(new Hand(_, Nil)),
+        hands = players.map(Hand(_, Nil)),
         field = Nil,
         reboundSize = 0,
         attacker = players.head,
