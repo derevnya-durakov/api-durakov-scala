@@ -1,0 +1,19 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# The route for in-browser IDE GraphiQL
+GET         /                                    controllers.AppController.graphiql
+#GET         /client                              controllers.AppController.client
+
+# The route for the main controller that accepts all requests
+POST        /graphql                             controllers.AppController.graphqlBody
+
+# The route to handle GraphQL subscriptions over SSE
+GET         /graphql/subscribe/sse               controllers.AppController.graphqlSubscriptionOverSSE
+
+# The route to handle GraphQL subscriptions over WebSocket
+GET         /graphql/subscribe/websockets        controllers.AppController.graphqlSubscriptionOverWebSocket
+
+# The route to the resources that GraphiQL uses
+GET         /assets/*file                        controllers.Assets.versioned(path="/public", file: Asset)

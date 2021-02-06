@@ -4,6 +4,7 @@ import dev.durak.context.GameContext
 import dev.durak.model.Ranks.Rank
 import dev.durak.model.Suits.Suit
 import dev.durak.model.{Card, Player, Ranks, Suits}
+import dev.durak.repo.PlayerRepository
 import sangria.schema._
 
 import java.util.UUID
@@ -107,27 +108,51 @@ object SchemaDefinition {
     )
   )
 
-  //  val MutationType: ObjectType[GameContext, Unit] = ObjectType(
-  //    name = "Mutation",
-  //    fields[GameContext, Unit](
-  //      Field(
-  //        name = "createPlayer",
-  //        fieldType = PlayerType,
-  //        arguments = NicknameArg :: Nil,
-  //        resolve = ctx => ctx.ctx.createPlayer(ctx.arg(NicknameArg))
-  //      )
-  //    )
-  //  )
+  case class Event(id: Long)
 
-  //  val SubscriptionType = ObjectType(
-  //    name = "Subscription",
-  //    Field.subs(
-  //
-  //    )
-  //  )
+  val EventType: ObjectType[GameContext, Event] = ObjectType(
+    name = "Event",
+    fields[GameContext, Event](
+      Field("id", LongType, resolve = _.value.id)
+    )
+  )
+
+  //  val CategoryCreatedType = deriveObjectType[Unit, CategoryCreated](Interfaces(EventType))
+
+  val MutationType: ObjectType[GameContext, Unit] = ObjectType(
+    name = "Mutation",
+    fields[GameContext, Unit](
+      Field(
+        name = "createPlayer",
+        fieldType = PlayerType,
+        arguments = NicknameArg :: Nil,
+        resolve = ctx => ctx.ctx.playerRepository.save(Player(ctx.arg(NicknameArg)))
+      )
+    )
+  )
+
+
+  import monix.execution.Scheduler.Implicits.global
+  import sangria.streaming.monix._
+
+  val SubscriptionType: ObjectType[GameContext, Unit] =
+    ObjectType(
+      name = "Subscription",
+      fields[GameContext, Unit](
+        Field.subs(
+          "categoryEvents", EventType, resolve = (c: Context[GameContext, Unit]) => {
+            val obs = PlayerRepository.source
+              .map(player => Event(player.id.getLeastSignificantBits))
+              .dump("graphQL")
+              .map(Action(_))
+            obs // this is a Monix Observable, keep reading...
+          }
+        )
+      )
+    )
 
   val GameSchema: Schema[GameContext, Unit] = Schema(QueryType
-    //    , Some(MutationType)
-    //    , Some(SubscriptionType)
+    , Some(MutationType)
+    , Some(SubscriptionType)
   )
 }

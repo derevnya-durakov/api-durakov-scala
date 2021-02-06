@@ -1,34 +1,31 @@
+name := "play-sangria-graphql-subscriptions"
 
-name := "api-durakov-scala"
+version := "1.0"
 
-version := "0.1"
+lazy val `graphql_api_example` = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.13.3"
-scalacOptions ++= Seq("-deprecation", "-feature")
+resolvers += "Atlassian Maven Repository" at "https://maven.atlassian.com/content/repositories/atlassian-public/"
 
-val akkaVersion = "2.6.10"
-val circeVersion = "0.13.0"
-val sangriaVersion = "2.0.1"
+scalaVersion := "2.12.8"
 
 libraryDependencies ++= Seq(
-  "org.sangria-graphql" %% "sangria" % sangriaVersion,
-  "org.sangria-graphql" %% "sangria-slowlog" % sangriaVersion,
-  "org.sangria-graphql" %% "sangria-circe" % "1.3.1",
+  //  evolutions,
+  guice,
+  //  "org.sangria-graphql" %% "sangria-play-json" % "2.0.1",
+  //  "org.sangria-graphql" %% "sangria" % "2.1.0",
+  //  "org.sangria-graphql" %% "sangria-akka-streams" % "1.0.2",
+  //  "io.monix" %% "monix" % "3.3.0",
+  "org.sangria-graphql" %% "sangria-play-json" % "1.0.5",
+  "org.sangria-graphql" %% "sangria" % "1.4.2",
+  "org.sangria-graphql" %% "sangria-akka-streams" % "1.0.1",
+  "io.monix" %% "monix" % "2.3.3",
 
-  "com.typesafe.akka" %% "akka-http" % "10.2.1",
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "de.heikoseeberger" %% "akka-http-circe" % "1.35.0",
+  //  "com.h2database" % "h2" % "1.4.197",
 
-  "io.circe" %% "circe-core" % circeVersion,
-  "io.circe" %% "circe-parser" % circeVersion,
-  "io.circe" %% "circe-optics" % circeVersion,
-
-  "org.scalatest" %% "scalatest" % "3.0.8" % Test
+  "com.typesafe.play" %% "play-slick" % "5.0.0",
+  //  "com.typesafe.play" %% "play-slick-evolutions" % "5.0.0",
+  //  "com.typesafe.slick" %% "slick" % "3.3.3",
+  //  "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3"
 )
-
-//Revolver.settings
-enablePlugins(JavaAppPackaging)
-mainClass in Compile := Some("dev.durak.Application")
 herokuAppName in Compile := "api-durakov-scala"
 herokuJdkVersion in Compile := "8"
