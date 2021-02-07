@@ -1,0 +1,35 @@
+type Player {
+    id: ID!
+    nickname: String!
+}
+
+type Auth {
+    accessToken: ID!
+    player: Player!
+}
+
+type PlayerEvent {
+    name: String!
+    player: Player!
+}
+
+type Query {
+    players: [Player!]!
+    findPlayer(id: String!): Player
+    accessToken(nickname: String!): String
+    auth(accessToken: String!): Auth
+}
+
+type Mutation {
+    addPlayer(nickname: String!): Player!
+}
+
+type Subscription {
+    playersUpdated: PlayerEvent!
+}
+
+schema {
+    query: Query
+    mutation: Mutation
+    subscription: Subscription
+}

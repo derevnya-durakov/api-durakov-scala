@@ -1,100 +1,60 @@
 package dev.durak
 
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.sse.ServerSentEvent
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server._
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport.jsonMarshaller
-import dev.durak
-import dev.durak.SangriaAkkaHttp._
-import dev.durak.context.GameContext
-import dev.durak.repo.{GameRepository, PlayerRepository}
-import sangria.ast.OperationType
-import sangria.execution.{ErrorWithResolver, QueryAnalysisError}
-import sangria.marshalling.circe._
-import sangria.slowlog.SlowLog
-import monix.execution.Scheduler.Implicits.global
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.SpringApplication
+import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.autoconfigure.jms.DefaultJmsListenerContainerFactoryConfigurer
+import org.springframework.context.annotation.Bean
+import org.springframework.jms.annotation.EnableJms
+import org.springframework.jms.config.{DefaultJmsListenerContainerFactory, JmsListenerContainerFactory}
+import org.springframework.jms.support.converter.{MappingJackson2MessageConverter, MessageType}
 
-import scala.util.{Failure, Success}
-//import argonaut._
-//import argonaut.Argonaut._
-//import info.macias.sse.EventTarget
-//import ....HttpServerResponse
-import sangria.ast._
-import sangria.execution._
-//import sangria.marshalling.argonaut.ArgonautResultMarshaller
-import sangria.parser.QueryParser
+import java.util.concurrent.{ExecutorService, Executors}
+import javax.jms.ConnectionFactory
 
-import scala.util.{Failure, Success}
+@SpringBootApplication
+@EnableJms
+class Application {
+  @Bean def executor: ExecutorService = Executors.newSingleThreadExecutor
 
-object Application extends App with CorsSupport {
+  @Bean
+  def myFactory(@Qualifier("jmsConnectionFactory") connectionFactory: ConnectionFactory,
+                configurer: DefaultJmsListenerContainerFactoryConfigurer): JmsListenerContainerFactory[_] = {
+    val factory = new DefaultJmsListenerContainerFactory
+    // This provides all boot's default to this factory, including the message converter
+    configurer.configure(factory, connectionFactory)
+    // You could still override some of Boot's default if necessary.
+    factory
+  }
 
-  val route: Route =
-    optionalHeaderValueByName("X-Apollo-Tracing") { tracing =>
-      path("graphql") {
-        graphQLPlayground ~
-          prepareGraphQLRequest {
-            case Success(GraphQLRequest(query, variables, operationName)) => {
-              val middleware = if (tracing.isDefined) SlowLog.apolloTracing :: Nil else Nil
-              val operation = query.operationType(operationName)
-              operation match {
-                case Some(OperationType.Subscription) => {
-                  import sangria.streaming.monix._
-                  import sangria.execution.ExecutionScheme.Stream
+//  @Bean
+//  def addJacksonScalaModule(): DefaultScalaModule = DefaultScalaModule
 
-//                 var resp =
-                   Executor.execute(
-                    schema = durak.SchemaDefinition.GameSchema,
-                    queryAst = query,
-                    userContext = new GameContext(new GameRepository, new PlayerRepository),
-                    variables = variables,
-                    operationName = operationName,
-                    middleware = middleware,
-                    //                deferredResolver = deferredResolver
-                  ).map(serverSentEvent(target, _)).subscribe()
+  @Bean
+  def jacksonJmsMessageConverter
+//  (objectMapper: ObjectMapper)
+  : MappingJackson2MessageConverter = {
+    val mapper = JsonMapper.builder()
+      .addModule(DefaultScalaModule)
+      .build()
 
-//                  complete(resp) // todo remove
-//                  resp
+    val converter = new MappingJackson2MessageConverter
+    converter.setTargetType(MessageType.TEXT)
+    converter.setTypeIdPropertyName("_type")
+    converter.setObjectMapper(mapper)
+    converter
+  }
 
-//                  Executor.execute(durak.SchemaDefinition.GameSchema, query, CatalogRepo(vertx), operationName = op, variables = vars)
-//                    .map(serverSentEvent(target, _)).subscribe()
-                }
-                case _ => {
-                  //            val deferredResolver = DeferredResolver.fetchers(SchemaDefinition.players)
-                  val graphQLResponse = Executor.execute(
-                    schema = durak.SchemaDefinition.GameSchema,
-                    queryAst = query,
-                    userContext = new GameContext(new GameRepository, new PlayerRepository),
-                    variables = variables,
-                    operationName = operationName,
-                    middleware = middleware,
-                    //                deferredResolver = deferredResolver
-                  ).map(OK -> _)
-                    .recover {
-                      case error: QueryAnalysisError => BadRequest -> error.resolveError
-                      case error: ErrorWithResolver => InternalServerError -> error.resolveError
-                      //                 case error: RuntimeException =>
-                    }
-                  complete(graphQLResponse)
-                }
-              }
-            }
-            case Failure(preparationError) => complete(BadRequest, formatError(preparationError))
-          }
-      }
-    } ~
-      (get & pathEndOrSingleSlash) {
-        redirect("/graphql", PermanentRedirect)
-      }
+  //  @Bean
+  //  def createSchema: GraphQLSchema = {
+  //    GraphQLSchema.newSchema()
+  //      .build()
+  //  }
+}
 
-  val PORT = sys.props.get("http.port").fold(8080)(_.toInt)
-  val INTERFACE = "0.0.0.0"
-
-
-  import akka.actor.ActorSystem
-  implicit val system = ActorSystem("sangria-server")
-
-  import system.dispatcher
-  Http().newServerAt(INTERFACE, PORT).bindFlow(corsHandler(route))
+object Application extends App {
+  SpringApplication.run(classOf[Application], args: _*)
 }

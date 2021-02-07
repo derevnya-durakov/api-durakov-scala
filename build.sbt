@@ -1,31 +1,26 @@
-name := "play-sangria-graphql-subscriptions"
+name := "api-durakov-scala"
 
-version := "1.0"
+version := "0.1"
 
-lazy val `graphql_api_example` = (project in file(".")).enablePlugins(PlayScala)
+scalaVersion := "2.13.4"
+kotlinVersion := "1.3.70"
+libraryDependencies ++= {
+  val springBootVersion = "2.2.6.RELEASE"
 
-resolvers += "Atlassian Maven Repository" at "https://maven.atlassian.com/content/repositories/atlassian-public/"
-
-scalaVersion := "2.12.8"
-
-libraryDependencies ++= Seq(
-  //  evolutions,
-  guice,
-  //  "org.sangria-graphql" %% "sangria-play-json" % "2.0.1",
-  //  "org.sangria-graphql" %% "sangria" % "2.1.0",
-  //  "org.sangria-graphql" %% "sangria-akka-streams" % "1.0.2",
-  //  "io.monix" %% "monix" % "3.3.0",
-  "org.sangria-graphql" %% "sangria-play-json" % "1.0.5",
-  "org.sangria-graphql" %% "sangria" % "1.4.2",
-  "org.sangria-graphql" %% "sangria-akka-streams" % "1.0.1",
-  "io.monix" %% "monix" % "2.3.3",
-
-  //  "com.h2database" % "h2" % "1.4.197",
-
-  "com.typesafe.play" %% "play-slick" % "5.0.0",
-  //  "com.typesafe.play" %% "play-slick-evolutions" % "5.0.0",
-  //  "com.typesafe.slick" %% "slick" % "3.3.3",
-  //  "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3"
-)
+  Seq(
+    "io.reactivex.rxjava2" % "rxjava" % "2.2.20",
+    "org.springframework.boot" % "spring-boot-starter-activemq" % springBootVersion,
+//    "org.springframework.boot" % "spring-boot-starter-web" % springBootVersion,
+//    "org.springframework.boot" % "spring-boot-starter-websocket" % springBootVersion,
+    "com.graphql-java-kickstart" % "graphql-spring-boot-starter" % "7.1.0",
+    "com.graphql-java-kickstart" % "playground-spring-boot-starter" % "7.1.0",
+//    "com.graphql-java-kickstart" % "graphiql-spring-boot-starter" % "11.0.0",
+//    "com.graphql-java-kickstart" % "graphql-java-tools" % "11.0.0",
+    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.1"
+  )
+}
+enablePlugins(JavaAppPackaging, AshScriptPlugin)
+// set the main entrypoint to the application that is used in startup scripts
+mainClass in Compile := Some("dev.durak.Application")
 herokuAppName in Compile := "api-durakov-scala"
 herokuJdkVersion in Compile := "8"

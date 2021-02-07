@@ -1,0 +1,10 @@
+server.port: 8088
+graphql:
+  servlet:
+    mapping: '/graphql'
+    subscriptions.websocket.path: '/graphql/subscribe/websockets'
+  playground:
+    subscriptionEndpoint: '/graphql/subscribe/websockets'
+graphiql.endpoint:
+  graphql: ${graphql.servlet.mapping}
+  subscriptions: ${graphql.servlet.subscriptions.websocket.path}
