@@ -17,15 +17,15 @@ type Query {
     players: [Player!]!
     findPlayer(id: String!): Player
     accessToken(nickname: String!): String
-    auth(accessToken: String!): Auth
+    auth: Auth!,
 }
 
 type Mutation {
-    addPlayer(nickname: String!): Player!
+    addPlayer(nickname: String!): Player!,
 }
 
 type Subscription {
-    playersUpdated: PlayerEvent!
+    playersUpdated: PlayerEvent!,
 }
 
 schema {

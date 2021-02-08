@@ -21,9 +21,9 @@ trait IMemoryRepository[T <: Identifiable] extends ICrudRepository[T] {
 
   override def find(id: UUID): Option[T] = entities.get(id)
 
-  override def findAll(): List[T] = entities.values.toList
+  override def findAll(): Iterable[T] = entities.values
 
-  override def update(entity: T): T = {
+  override def update(entity: T): T =
     lock synchronized {
       if (!exists(entity.id))
         throw new RuntimeException(s"Entity with id $entity.id not exists")
@@ -32,7 +32,6 @@ trait IMemoryRepository[T <: Identifiable] extends ICrudRepository[T] {
         entity
       }
     }
-  }
 
   override def delete(id: UUID): Option[T] = entities.remove(id)
 

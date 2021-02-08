@@ -2,6 +2,8 @@ package dev.durak.service
 
 import dev.durak.model.{Auth, Player, PlayerEvent}
 import dev.durak.repo.ICrudRepository
+import graphql.kickstart.servlet.context.{DefaultGraphQLWebSocketContext, GraphQLServletContext, GraphQLWebSocketContext}
+import graphql.schema.DataFetchingEnvironment
 import org.springframework.jms.core.JmsTemplate
 import org.springframework.stereotype.Service
 
@@ -15,7 +17,20 @@ class PlayerService(jmsTemplate: JmsTemplate,
 
   Seq("kolya", "sergo", "sasha").foreach(internalCreatePlayer)
 
-  def players: List[Player] = playerRepo.findAll()
+  def authenticated[T](env: DataFetchingEnvironment)(op: Auth => T): T = {
+//    val accessToken = env.getContext match {
+//      case s: GraphQLServletContext => s.asInstanceOf[GraphQLServletContext].getHttpServletRequest
+//      case ctx: GraphQLWebSocketContext => ctx.asInstanceOf[GraphQLWebSocketContext].getHandshakeRequest.
+//    }
+    val context: GraphQLServletContext = env.getContext
+    val accessToken = context.getHttpServletRequest.getHeader("x-auth-token")
+    require(accessToken != null, "401")
+    val authOption = auth(accessToken)
+    require(authOption.isDefined, "403")
+    op(authOption.get)
+  }
+
+  def players: Iterable[Player] = playerRepo.findAll()
 
   def findPlayer(id: String): Option[Player] = playerRepo.find(UUID.fromString(id))
 

@@ -9,7 +9,7 @@ trait ICrudRepository[T <: Identifiable] {
 
   def find(id: UUID): Option[T]
 
-  def findAll(): List[T]
+  def findAll(): Iterable[T]
 
   def update(entity: T): T
 
