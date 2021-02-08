@@ -3,6 +3,15 @@ graphql:
   servlet:
     mapping: '/graphql'
     subscriptions.websocket.path: '/graphql/subscribe/websockets'
+    corsEnabled: true
+    cors:
+      allowed-origins: '*'
+      allowed-headers: '*'
+      allowed-methods:
+        - 'GET'
+        - 'POST'
+        - 'HEAD'
+        - 'OPTIONS'
   playground:
     subscriptionEndpoint: '/graphql/subscribe/websockets'
 graphiql.endpoint:
