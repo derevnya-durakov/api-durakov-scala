@@ -1,8 +1,11 @@
 package dev.durak.service
 
+import dev.durak.exceptions.GameException
 import dev.durak.model.{Auth, Player, PlayerEvent}
 import dev.durak.repo.ICrudRepository
-import graphql.kickstart.servlet.context.{DefaultGraphQLWebSocketContext, GraphQLServletContext, GraphQLWebSocketContext}
+import dev.durak.service.PlayerService.AuthTokenHeader
+import graphql.kickstart.execution.context.GraphQLContext
+import graphql.kickstart.servlet.context.{GraphQLServletContext, GraphQLWebSocketContext}
 import graphql.schema.DataFetchingEnvironment
 import org.springframework.jms.core.JmsTemplate
 import org.springframework.stereotype.Service
@@ -18,15 +21,24 @@ class PlayerService(jmsTemplate: JmsTemplate,
   Seq("kolya", "sergo", "sasha").foreach(internalCreatePlayer)
 
   def authenticated[T](env: DataFetchingEnvironment)(op: Auth => T): T = {
-//    val accessToken = env.getContext match {
-//      case s: GraphQLServletContext => s.asInstanceOf[GraphQLServletContext].getHttpServletRequest
-//      case ctx: GraphQLWebSocketContext => ctx.asInstanceOf[GraphQLWebSocketContext].getHandshakeRequest.
-//    }
-    val context: GraphQLServletContext = env.getContext
-    val accessToken = context.getHttpServletRequest.getHeader("x-auth-token")
-    require(accessToken != null, "401")
-    val authOption = auth(accessToken)
-    require(authOption.isDefined, "403")
+    val context: GraphQLContext = env.getContext
+    val accessToken: Option[String] = context match {
+      case ctx: GraphQLServletContext => Option(ctx
+        .getHttpServletRequest
+        .getHeader(AuthTokenHeader))
+      case ctx: GraphQLWebSocketContext => Option(
+        ctx
+          .getHandshakeRequest
+          .getHeaders
+          .get(AuthTokenHeader))
+        .filterNot(_.isEmpty)
+        .map(_.get(0))
+    }
+    if (accessToken.isEmpty)
+      throw new GameException("401")
+    val authOption = auth(accessToken.get)
+    if (authOption.isEmpty)
+      throw new GameException("403")
     op(authOption.get)
   }
 
@@ -63,6 +75,7 @@ class PlayerService(jmsTemplate: JmsTemplate,
 }
 
 object PlayerService {
+  val AuthTokenHeader = "x-auth-token"
   //  val PlayerCreatedEvent = "PLAYER_CREATED"
   //  val PlayerUpdatedEvent = "PLAYER_UPDATED"
   //  val PlayerDeletedEvent = "PLAYER_DELETED"
