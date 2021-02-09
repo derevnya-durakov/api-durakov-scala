@@ -3,7 +3,6 @@ package dev.durak.service
 import dev.durak.exceptions.GameException
 import dev.durak.model.{Auth, Player, PlayerEvent}
 import dev.durak.repo.ICrudRepository
-import dev.durak.service.PlayerService.AuthTokenHeader
 import graphql.kickstart.execution.context.GraphQLContext
 import graphql.kickstart.servlet.context.{GraphQLServletContext, GraphQLWebSocketContext}
 import graphql.schema.DataFetchingEnvironment
@@ -22,21 +21,21 @@ class PlayerService(jmsTemplate: JmsTemplate,
 
   def authenticated[T](env: DataFetchingEnvironment)(op: Auth => T): T = {
     val context: GraphQLContext = env.getContext
-    val accessToken: Option[String] = context match {
-      case ctx: GraphQLServletContext => Option(ctx
-        .getHttpServletRequest
-        .getHeader(AuthTokenHeader))
-      case ctx: GraphQLWebSocketContext => Option(
+    val accessToken: String = context match {
+      case ctx: GraphQLServletContext =>
         ctx
-          .getHandshakeRequest
-          .getHeaders
-          .get(AuthTokenHeader))
-        .filterNot(_.isEmpty)
-        .map(_.get(0))
+        .getHttpServletRequest
+        .getHeader(AuthService.AuthTokenHeader)
+      case ctx: GraphQLWebSocketContext =>
+        ctx
+          .getSession
+          .getUserProperties
+          .get(AuthService.AuthTokenHeader)
+          .asInstanceOf[String]
     }
-    if (accessToken.isEmpty)
+    if (accessToken == null)
       throw new GameException("401")
-    val authOption = auth(accessToken.get)
+    val authOption = auth(accessToken)
     if (authOption.isEmpty)
       throw new GameException("403")
     op(authOption.get)
@@ -72,11 +71,4 @@ class PlayerService(jmsTemplate: JmsTemplate,
   def auth(accessToken: String): Option[Auth] =
     authRepo.findAll()
       .find(_.accessToken.toString == accessToken)
-}
-
-object PlayerService {
-  val AuthTokenHeader = "x-auth-token"
-  //  val PlayerCreatedEvent = "PLAYER_CREATED"
-  //  val PlayerUpdatedEvent = "PLAYER_UPDATED"
-  //  val PlayerDeletedEvent = "PLAYER_DELETED"
 }
