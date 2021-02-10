@@ -4,4 +4,4 @@ import dev.durak.model.internal.InternalGameState
 import org.springframework.stereotype.Repository
 
 @Repository
-class GameRepository extends IMemoryRepository[InternalGameState]
+class GameStateRepository extends IMemoryRepository[InternalGameState]

@@ -1,31 +1,85 @@
+enum Suit {
+    Clubs
+    Diamonds
+    Hearts
+    Spades
+}
+
+enum Rank {
+    Six
+    Seven
+    Eight
+    Nine
+    Ten
+    Jack
+    Queen
+    King
+    Ace
+}
+
+type Card {
+    suit: Suit!
+    rank: Rank!
+}
+
+type RoundPair {
+    attack: Card!
+    beaten: Card
+}
+
 type Player {
+    id: ID!
+    nick: String!
+    handSize: Int!
+}
+
+type GameState {
+    id: ID!
+    nonce: Int!
+    trumpSuit: Suit!
+    deckSize: Int!
+    discardPileSize: Int!
+    hand: [Card!]!
+    players: [Player!]!
+    round: [RoundPair!]!
+    defendPlayerId: ID!
+}
+
+type User {
     id: ID!
     nickname: String!
 }
 
 type Auth {
     accessToken: ID!
-    player: Player!
+    player: User!
 }
 
-type PlayerEvent {
+type UserEvent {
     name: String!
-    player: Player!
+    player: User!
+}
+
+type GameEvent {
+    name: String!
 }
 
 type Query {
-    players: [Player!]!
-    findPlayer(id: String!): Player
+    users: [User!]!
+    findUser(id: String!): User
     accessToken(nickname: String!): String
-    auth: Auth!,
+    auth: Auth!
+    getGameState(id: ID!): GameState
 }
 
 type Mutation {
-    addPlayer(nickname: String!): Player!,
+    addUser(nickname: String!): User!
+    startGame(players: [ID!]!): GameState!
 }
 
 type Subscription {
-    playersUpdated: PlayerEvent!,
+    usersUpdated: UserEvent!
+    gameUpdates(id: ID!): GameEvent!
 }
 
 schema {

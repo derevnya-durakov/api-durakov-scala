@@ -1,14 +1,14 @@
 package dev.durak.graphql1
 
 import dev.durak.jms.PlayerCreatedObservableOnSubscribeEmitter
-import dev.durak.model.PlayerEvent
+import dev.durak.model.UserEvent
 import io.reactivex.{BackpressureStrategy, Flowable, Observable}
 import org.reactivestreams.Publisher
 import org.springframework.stereotype.Component
 
 @Component
 class ChatPublisher(userCreatedObservableOnSubscribe: PlayerCreatedObservableOnSubscribeEmitter) {
-  private val playerCreatedFlowable: Flowable[PlayerEvent] = {
+  private val userCreatedFlowable: Flowable[UserEvent] = {
     val userCreatedConnectableObservable = Observable
       .create(userCreatedObservableOnSubscribe)
       .share
@@ -17,5 +17,5 @@ class ChatPublisher(userCreatedObservableOnSubscribe: PlayerCreatedObservableOnS
     userCreatedConnectableObservable.toFlowable(BackpressureStrategy.BUFFER)
   }
 
-  def getUserCreatedPublisher: Publisher[PlayerEvent] = playerCreatedFlowable
+  def getUserCreatedPublisher: Publisher[UserEvent] = userCreatedFlowable
 }

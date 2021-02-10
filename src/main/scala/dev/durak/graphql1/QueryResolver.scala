@@ -1,7 +1,7 @@
 package dev.durak.graphql1
 
-import dev.durak.model.{Auth, Player}
-import dev.durak.service.{AuthService, GameService, PlayerService}
+import dev.durak.model.{Auth, User}
+import dev.durak.service.{AuthService, GameService, UserService}
 import graphql.kickstart.tools.GraphQLQueryResolver
 import graphql.schema.DataFetchingEnvironment
 import org.springframework.stereotype.Component
@@ -13,13 +13,13 @@ import scala.jdk.OptionConverters._
 
 @Component
 class QueryResolver(gameService: GameService,
-                    playerService: PlayerService,
+                    userService: UserService,
                     authService: AuthService) extends GraphQLQueryResolver {
-  def players(env: DataFetchingEnvironment): lang.Iterable[Player] =
-    authService.authenticated(env) { _ => playerService.players.asJava }
+  def users(env: DataFetchingEnvironment): lang.Iterable[User] =
+    authService.authenticated(env) { _ => userService.users.asJava }
 
-  def findPlayer(id: String, env: DataFetchingEnvironment): Optional[Player] =
-    authService.authenticated(env) { _ => playerService.findPlayer(id).toJava }
+  def findUser(id: String, env: DataFetchingEnvironment): Optional[User] =
+    authService.authenticated(env) { _ => userService.findUser(id).toJava }
 
   def accessToken(nickname: String): Optional[String] =
     authService.accessToken(nickname).toJava

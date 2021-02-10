@@ -1,59 +1,60 @@
 package dev.durak.service
 
-import dev.durak.model.internal.InternalGameState
-import dev.durak.model.{Auth, Player}
+import dev.durak.exceptions.GameException
+import dev.durak.model._
+import dev.durak.model.internal.{InternalGameState, InternalPlayer}
 import dev.durak.repo.ICrudRepository
+import dev.durak.service.GameService.InitialCardsList
 import org.springframework.stereotype.Service
 
+import java.util.UUID
+import scala.collection.mutable
+import scala.util.Random
+
 @Service
-class GameService(
-                   //                   roomRepo: ICrudRepository[Room],
-                   gameRepo: ICrudRepository[InternalGameState],
-                   playerRepo: ICrudRepository[Player],
-                   authRepo: ICrudRepository[Auth]) {
+class GameService(authService: AuthService,
+                  gameRepo: ICrudRepository[InternalGameState],
+                  userRepo: ICrudRepository[User],
+                  authRepo: ICrudRepository[Auth]) {
   private val lock = new Object
 
-  private def authenticated[T](accessToken: String)(op: Auth => T): T = {
-    val auth = authRepo.findAll().find(_.accessToken.toString == accessToken)
-    require(auth.isDefined, "Unauthorized access")
-    op(auth.get)
+  def startGame(auth: Auth, userIds: List[String]): InternalGameState = {
+    if (userIds.size < 2 || userIds.size > 6) {
+      throw new GameException("Players size must be 2 <= x <= 6")
+    }
+    val playersWithEmptyHands = loadUsers(userIds).map(InternalPlayer(_, Nil))
+    val seed = 123 // hardcoded for tests
+    var shuffledDeck = new Random(seed).shuffle(InitialCardsList)
+
+
+    InternalGameState(
+      id = UUID.randomUUID(),
+      seed,
+      nonce = 1,
+    )
   }
 
-  //  def getRooms: Iterable[Room] = roomRepo.findAll()
-  //
-  //  def getRoom(id: String): Option[Room] = roomRepo.find(UUID.fromString(id))
+  private def dealCards(players: List[InternalPlayer],
+                        deck: List[Card],
+                        lastTrump: Option[Card]): (List[InternalPlayer], List[Card], Option[Card]) = {
+    val playersMap = mutable.Map[User, List[Card]](players.map(p => (p.user, p.hand)): _*)
+    var varDeck = deck
+    var varLastTrump = lastTrump
+    while ( && (varDeck.nonEmpty || varLastTrump.isDefined)) {
 
-  //  def createRoom(accessToken: String): Room =
-  //    authenticated(accessToken) { auth => roomRepo.create(Room(auth.player)) }
+    }
+  }
 
-  //  private def withRoom[T](roomId: String)(op: Room => T): T = {
-  //    val roomOpt = getRoom(roomId)
-  //    require(roomOpt.isDefined, "Room doesn't exist")
-  //    op(roomOpt.get)
-  //  }
-  //
-  //  def joinRoom(accessToken: String, roomId: String): Room =
-  //    authenticated(accessToken) { auth =>
-  //      lock synchronized {
-  //        withRoom(roomId) { room =>
-  //          require(!room.players.contains(auth.player), "Player already in room")
-  //          require(room.game.isEmpty, "Game in the room already started")
-  //          require(room.players.size < 6, "Room is already full")
-  //          val updatedPlayersSet = (auth.player :: room.players.toList).toSet
-  //          roomRepo.update(Room(room.id, room.creator, updatedPlayersSet, room.game))
-  //        }
-  //      }
-  //    }
-  //
-  //  def startGame(accessToken: String, roomId: String): Room =
-  //    authenticated(accessToken) { auth =>
-  //      lock synchronized {
-  //        withRoom(roomId) { room =>
-  //          require(room.creator == auth.player, "You are not creator of the room")
-  //          require(room.players.size >= 2, "Room should have at least 2 players")
-  //          val game = gameRepo.create(InternalGameState(UUID.randomUUID()))
-  //          roomRepo.update(Room(room.id, room.creator, room.players, Some(game)))
-  //        }
-  //      }
-  //    }
+  private def loadUsers(userIds: List[String]): List[User] =
+    try {
+      userIds
+        .map(UUID.fromString)
+        .map(id => userRepo.find(id).getOrElse(throw new GameException(s"User $id not found")))
+    } catch {
+      case e: IllegalArgumentException => throw new GameException(e.getMessage)
+    }
+}
+
+object GameService {
+  private val InitialCardsList: List[Card] = Ranks.values.toList.flatMap(rank => Suits.values.toList.map(suit => new Card(suit, rank)))
 }
