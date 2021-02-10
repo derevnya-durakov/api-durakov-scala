@@ -7,19 +7,29 @@ import org.springframework.stereotype.Component
 
 import java.util
 import java.util.Collections
+import scala.jdk.CollectionConverters._
 
 @Component
 class WsAuthTokenListener extends ApolloSubscriptionConnectionListener {
   override def onConnect(session: SubscriptionSession, message: OperationMessage): Unit = {
     val payload = message.getPayload
-    val authToken: String = payload match {
+    payload match {
       case payloadMap: util.Map[String, util.Map[String, String]] =>
-        payloadMap
-          .getOrDefault("headers", Collections.emptyMap[String, String]())
-          .get(AuthService.AuthTokenHeader)
-      case _ => null
+        val headersKey = payloadMap
+          .keySet().asScala
+          .find(_.equalsIgnoreCase("headers"))
+        if (headersKey.isDefined) {
+          val headers = payloadMap.getOrDefault(headersKey.get, Collections.emptyMap())
+          val authHeaderKey = headers
+            .keySet().asScala
+            .find(_.equalsIgnoreCase(AuthService.AuthTokenHeader))
+          if (authHeaderKey.isDefined) {
+            val authToken = headers.get(authHeaderKey.get)
+            if (authToken != null)
+              session.getUserProperties.put(AuthService.AuthTokenHeader, authToken)
+          }
+        }
+      case _ =>
     }
-    if (authToken != null)
-      session.getUserProperties.put(AuthService.AuthTokenHeader, authToken)
   }
 }
