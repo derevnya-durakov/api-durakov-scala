@@ -1,6 +1,7 @@
 package dev.durak.service
 
 import dev.durak.exceptions.GameException
+import dev.durak.model.Suits.Suit
 import dev.durak.model._
 import dev.durak.model.internal.{InternalGameState, InternalPlayer}
 import dev.durak.repo.ICrudRepository
@@ -23,15 +24,25 @@ class GameService(authService: AuthService,
       throw new GameException("Players size must be 2 <= x <= 6")
     }
     val playersWithEmptyHands = loadUsers(userIds).map(InternalPlayer(_, Nil))
+    val id = UUID.fromString("0c52f37c-399c-4304-9d39-34d08b3ae1ba") // hardcoded for tests
     val seed = 123 // hardcoded for tests
-    var shuffledDeck = new Random(seed).shuffle(InitialCardsList)
-
+    val shuffledDeck = new Random(seed).shuffle(InitialCardsList)
+    val (players, deck, lastTrump) = dealCards(playersWithEmptyHands, shuffledDeck, None)
 
     InternalGameState(
-      id = UUID.randomUUID(),
+      id,
       seed,
       nonce = 1,
+
     )
+  }
+
+  private def initialDealCards(players: List[InternalPlayer],
+                               deck: List[Card],
+                               lastTrump: Option[Card])
+  : (List[InternalPlayer], List[Card], Option[Card], Suit) = {
+    val (dealedPlayers, dealedDeck, _) = dealCards(players, deck, lastTrump)
+
   }
 
   private def dealCards(players: List[InternalPlayer],
@@ -40,9 +51,26 @@ class GameService(authService: AuthService,
     val playersMap = mutable.Map[User, List[Card]](players.map(p => (p.user, p.hand)): _*)
     var varDeck = deck
     var varLastTrump = lastTrump
-    while ( && (varDeck.nonEmpty || varLastTrump.isDefined)) {
-
+    for (user <- playersMap.keySet) {
+      var hand = playersMap(user)
+      while (hand.size < 6 && (varDeck.nonEmpty || varLastTrump.isDefined)) {
+        val card = {
+          if (varDeck.nonEmpty) {
+            val c = varDeck.head
+            varDeck = varDeck.drop(1)
+            c
+          } else {
+            val c = varLastTrump.get
+            varLastTrump = None
+            c
+          }
+        }
+        hand = card :: hand
+      }
+      playersMap.put(user, hand)
     }
+    val resultPlayers = playersMap.map(e => InternalPlayer(e._1, e._2)).toList
+    (resultPlayers, varDeck, varLastTrump)
   }
 
   private def loadUsers(userIds: List[String]): List[User] =

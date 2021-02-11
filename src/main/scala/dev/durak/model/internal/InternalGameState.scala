@@ -1,6 +1,6 @@
 package dev.durak.model.internal
 
-import dev.durak.model.Card
+import dev.durak.model.{Card, Identifiable}
 import dev.durak.model.Suits.Suit
 
 import java.util.UUID
@@ -14,4 +14,4 @@ case class InternalGameState(id: UUID,
                              discardPileSize: Int,
                              players: List[InternalPlayer],
                              round: List[InternalRoundPair],
-                             defendPlayerId: String)
+                             defendPlayerId: String) extends Identifiable

@@ -1,6 +1,5 @@
 package dev.durak
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.springframework.beans.factory.annotation.Qualifier
@@ -24,19 +23,12 @@ class Application {
   def myFactory(@Qualifier("jmsConnectionFactory") connectionFactory: ConnectionFactory,
                 configurer: DefaultJmsListenerContainerFactoryConfigurer): JmsListenerContainerFactory[_] = {
     val factory = new DefaultJmsListenerContainerFactory
-    // This provides all boot's default to this factory, including the message converter
     configurer.configure(factory, connectionFactory)
-    // You could still override some of Boot's default if necessary.
     factory
   }
 
-//  @Bean
-//  def addJacksonScalaModule(): DefaultScalaModule = DefaultScalaModule
-
   @Bean
-  def jacksonJmsMessageConverter
-//  (objectMapper: ObjectMapper)
-  : MappingJackson2MessageConverter = {
+  def jacksonJmsMessageConverter: MappingJackson2MessageConverter = {
     val mapper = JsonMapper.builder()
       .addModule(DefaultScalaModule)
       .build()
@@ -47,12 +39,6 @@ class Application {
     converter.setObjectMapper(mapper)
     converter
   }
-
-  //  @Bean
-  //  def createSchema: GraphQLSchema = {
-  //    GraphQLSchema.newSchema()
-  //      .build()
-  //  }
 }
 
 object Application extends App {
