@@ -27,12 +27,6 @@ type RoundPair {
     beaten: Card
 }
 
-type Player {
-    id: ID!
-    nick: String!
-    handSize: Int!
-}
-
 type GameState {
     id: ID!
     nonce: Int!
@@ -42,7 +36,12 @@ type GameState {
     hand: [Card!]!
     players: [Player!]!
     round: [RoundPair!]!
-    defendPlayerId: ID!
+    defendingId: String!
+}
+
+type Player {
+    user: User!
+    handSize: Int!
 }
 
 type User {
@@ -52,12 +51,12 @@ type User {
 
 type Auth {
     accessToken: ID!
-    player: User!
+    user: User!
 }
 
 type UserEvent {
     name: String!
-    player: User!
+    user: User!
 }
 
 type GameEvent {
@@ -69,7 +68,7 @@ type Query {
     findUser(id: String!): User
     accessToken(nickname: String!): String
     auth: Auth!
-    getGameState(id: ID!): GameState
+    getGameState(userIds: ID!): GameState
 }
 
 type Mutation {
@@ -79,7 +78,7 @@ type Mutation {
 
 type Subscription {
     usersUpdated: UserEvent!
-    gameUpdates(id: ID!): GameEvent!
+#    gameUpdated(id: ID!): GameEvent!
 }
 
 schema {

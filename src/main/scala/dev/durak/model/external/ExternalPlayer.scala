@@ -1,3 +1,3 @@
 package dev.durak.model.external
 
-case class ExternalPlayer(id: String, nick: String, handSize: Int)
+case class ExternalPlayer(user: ExternalUser, handSize: Int)

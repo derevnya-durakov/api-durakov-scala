@@ -34,7 +34,7 @@ class AuthService(authRepo: ICrudRepository[Auth]) {
 
   def accessToken(nickname: String): Option[String] =
     authRepo.findAll()
-      .find(_.player.nickname == nickname)
+      .find(_.user.nickname == nickname)
       .map(_.accessToken.toString)
 
   def auth(accessToken: String): Option[Auth] =

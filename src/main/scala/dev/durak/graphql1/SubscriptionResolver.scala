@@ -11,6 +11,6 @@ import org.springframework.stereotype.Component
 class SubscriptionResolver(chatPublisher: ChatPublisher,
                            playerService: UserService,
                            authService: AuthService) extends GraphQLSubscriptionResolver {
-  def playersUpdated(env: DataFetchingEnvironment): Publisher[UserEvent] =
+  def usersUpdated(env: DataFetchingEnvironment): Publisher[UserEvent] =
     authService.authenticated(env) { _ => chatPublisher.getUserCreatedPublisher }
 }
