@@ -1,7 +1,6 @@
 package dev.durak.model.external
 
-import dev.durak.model.Card
-import dev.durak.model.Suits.Suit
+import dev.durak.model.{Card, Suit}
 
 import java.util.Optional
 

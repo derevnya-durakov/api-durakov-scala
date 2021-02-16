@@ -68,17 +68,17 @@ type Query {
     findUser(id: String!): User
     accessToken(nickname: String!): String
     auth: Auth!
-    getGameState(userIds: ID!): GameState
+    getGameState(id: ID!): GameState
 }
 
 type Mutation {
     addUser(nickname: String!): User!
-    startGame(players: [ID!]!): GameState!
+    startGame(userIds: [ID!]!): GameState!
 }
 
 type Subscription {
     usersUpdated: UserEvent!
-#    gameUpdated(id: ID!): GameEvent!
+    gameUpdated(id: ID!): GameEvent!
 }
 
 schema {

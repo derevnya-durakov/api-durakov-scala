@@ -1,8 +1,7 @@
-package dev.durak.graphql1
+package dev.durak.graphql
 
-import dev.durak.model.external.{ExternalGameState, ExternalPlayer, ExternalRoundPair, ExternalUser}
-import dev.durak.model.Auth
-import dev.durak.model.internal.InternalUser
+import dev.durak.model.external.{ExternalGameState, ExternalPlayer, ExternalRoundPair}
+import dev.durak.model.{Auth, User}
 import dev.durak.service.{AuthService, GameService, UserService}
 import graphql.kickstart.tools.GraphQLQueryResolver
 import graphql.schema.DataFetchingEnvironment
@@ -17,10 +16,10 @@ import scala.jdk.OptionConverters._
 class QueryResolver(gameService: GameService,
                     userService: UserService,
                     authService: AuthService) extends GraphQLQueryResolver {
-  def users(env: DataFetchingEnvironment): lang.Iterable[InternalUser] =
+  def users(env: DataFetchingEnvironment): lang.Iterable[User] =
     authService.authenticated(env) { _ => userService.users.asJava }
 
-  def findUser(id: String, env: DataFetchingEnvironment): Optional[InternalUser] =
+  def findUser(id: String, env: DataFetchingEnvironment): Optional[User] =
     authService.authenticated(env) { _ => userService.findUser(id).toJava }
 
   def accessToken(nickname: String): Optional[String] =
@@ -35,7 +34,7 @@ class QueryResolver(gameService: GameService,
         // todo remove code duplication
         // exception may be thrown here if authenticated user is not player
         val hand = state.players.find(_.user == auth.user).map(_.hand).get.asJava
-        val players = state.players.map(p => ExternalPlayer(ExternalUser(p.user.id.toString, p.user.nickname), p.hand.size)).asJava
+        val players = state.players.map(p => ExternalPlayer(p.user, p.hand.size)).asJava
         val round = state.round.map(r => ExternalRoundPair(r.attack, r.beaten.toJava)).asJava
         ExternalGameState(
           state.id.toString,

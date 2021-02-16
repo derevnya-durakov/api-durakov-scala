@@ -1,3 +1,5 @@
 package dev.durak.model.external
 
-case class ExternalPlayer(user: ExternalUser, handSize: Int)
+import dev.durak.model.User
+
+case class ExternalPlayer(user: User, handSize: Int)

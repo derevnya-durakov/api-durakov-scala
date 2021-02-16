@@ -1,7 +1,5 @@
 package dev.durak.model
 
-import dev.durak.model.Suits.Suit
-
 import scala.util.Random
 
 class CardDeck private(cards: List[Card], val trumpSuit: Suit) {
@@ -24,9 +22,9 @@ class CardDeck private(cards: List[Card], val trumpSuit: Suit) {
 
 object CardDeck {
   private val InitialCardsList: List[Card] =
-    Ranks.values.toList.flatMap { rank =>
-      Suits.values.toList.map { suit =>
-        new Card(suit, rank)
+    Rank.values().toList.flatMap { rank =>
+      Suit.values().toList.map { suit =>
+        Card(suit, rank)
       }
     }
 

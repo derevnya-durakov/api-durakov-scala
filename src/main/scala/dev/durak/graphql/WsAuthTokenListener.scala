@@ -1,4 +1,4 @@
-package dev.durak.graphql1
+package dev.durak.graphql
 
 import dev.durak.service.AuthService
 import graphql.kickstart.execution.subscriptions.SubscriptionSession

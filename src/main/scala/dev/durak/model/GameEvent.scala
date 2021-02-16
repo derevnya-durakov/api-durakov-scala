@@ -1,3 +1,5 @@
 package dev.durak.model
 
-case class GameEvent(name: String)
+import java.util.UUID
+
+class GameEvent(val name: String, val gameId: UUID)
