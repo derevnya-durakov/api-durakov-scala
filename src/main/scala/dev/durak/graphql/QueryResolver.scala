@@ -35,7 +35,7 @@ class QueryResolver(gameService: GameService,
         // exception may be thrown here if authenticated user is not player
         val hand = state.players.find(_.user == auth.user).map(_.hand).get.asJava
         val players = state.players.map(p => ExternalPlayer(p.user, p.hand.size)).asJava
-        val round = state.round.map(r => ExternalRoundPair(r.attack, r.beaten.toJava)).asJava
+        val round = state.round.map(r => ExternalRoundPair(r.attack, r.defence.toJava)).asJava
         ExternalGameState(
           state.id.toString,
           state.nonce,

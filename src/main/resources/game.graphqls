@@ -29,7 +29,7 @@ input CardInput {
 
 type RoundPair {
     attack: Card!
-    beaten: Card
+    defence: Card
 }
 
 type GameState {

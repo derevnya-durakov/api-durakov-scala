@@ -79,8 +79,8 @@ class GameService(jmsTemplate: JmsTemplate,
   private def getAvailableCardRanks(round: List[RoundPair]): Set[Rank] = {
     round.flatMap { pair =>
       val cards = pair.attack :: Nil
-      if (pair.beaten.isDefined)
-        pair.beaten.get :: cards
+      if (pair.defence.isDefined)
+        pair.defence.get :: cards
       else
         cards
     }.map(_.rank).toSet
