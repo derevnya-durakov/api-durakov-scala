@@ -54,7 +54,7 @@ class GameService(jmsTemplate: JmsTemplate,
               }
               val round = RoundPair(card, None) :: state.round
               val updatedPlayers = state.players.map { p =>
-                if (p.user == auth.user)
+                if (p.user != auth.user)
                   p
                 else
                   Player(p.user, p.hand.filterNot(_ == card))
@@ -70,7 +70,7 @@ class GameService(jmsTemplate: JmsTemplate,
                 state.defendingId
               ))
               jmsTemplate.convertAndSend(
-                Constants.GAME_ATTACK, new GameEvent(Constants.GAME_ATTACK, state.id))
+                Constants.GAME_UPDATED, new GameEvent(Constants.GAME_ATTACK, state.id))
               updatedState
           }
       }
