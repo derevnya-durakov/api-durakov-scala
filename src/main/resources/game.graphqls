@@ -22,6 +22,11 @@ type Card {
     rank: Rank!
 }
 
+input CardInput {
+    suit: Suit!
+    rank: Rank!
+}
+
 type RoundPair {
     attack: Card!
     beaten: Card
@@ -74,6 +79,7 @@ type Query {
 type Mutation {
     addUser(nickname: String!): User!
     startGame(userIds: [ID!]!): GameState!
+    attack(gameId: ID!, card: CardInput!): GameState!
 }
 
 type Subscription {
