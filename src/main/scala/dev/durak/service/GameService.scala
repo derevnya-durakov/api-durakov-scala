@@ -14,10 +14,13 @@ import scala.collection.mutable
 @Service
 class GameService(jmsTemplate: JmsTemplate,
                   authService: AuthService,
+                  userService: UserService,
                   gameRepo: ICrudRepository[GameState],
                   userRepo: ICrudRepository[User],
                   authRepo: ICrudRepository[Auth]) {
   private val lock = new Object
+  // just for testing
+  startGame(null, userService.users.slice(0, 3).map(_.id.toString).toList)
 
   def getGameState(auth: Auth, id: String): Option[GameState] =
     gameRepo.find(UUID.fromString(id))
