@@ -3,6 +3,7 @@ package dev.durak.service
 import dev.durak.exceptions.GameException
 import dev.durak.graphql.Constants
 import dev.durak.model._
+import dev.durak.model.external.{ExternalGameState, ExternalPlayer, ExternalRoundPair}
 import dev.durak.repo.ICrudRepository
 import org.springframework.jms.core.JmsTemplate
 import org.springframework.stereotype.Service
@@ -171,4 +172,27 @@ class GameService(jmsTemplate: JmsTemplate,
     } catch {
       case e: IllegalArgumentException => throw new GameException(e.getMessage)
     }
+}
+
+object GameService {
+  def convertToExternal(state: GameState, user: User): ExternalGameState = {
+    import scala.jdk.CollectionConverters._
+    import scala.jdk.OptionConverters._
+    val hand = state.players.find(_.user == user).map(_.hand)
+      .getOrElse(throw new GameException("User is not player of the game")).asJava
+    val players = state.players.map(p => ExternalPlayer(p.user, p.hand.size)).asJava
+    val round = state.round.map(r => ExternalRoundPair(r.attack, r.defence.toJava)).asJava
+    ExternalGameState(
+      state.id.toString,
+      state.nonce,
+      state.deck.trumpSuit,
+      state.deck.lastTrump.toJava,
+      state.deck.deckSize,
+      state.discardPileSize,
+      hand,
+      players,
+      round,
+      state.defendingId.toString
+    )
+  }
 }
