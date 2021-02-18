@@ -48,6 +48,7 @@ type GameState {
 type Player {
     user: User!
     handSize: Int!
+    saidBeat: Boolean!
 }
 
 type User {
@@ -82,6 +83,7 @@ type Mutation {
     startGame(userIds: [ID!]!): GameState!
     attack(gameId: ID!, card: CardInput!): GameState!
     defend(gameId: ID!, attackCard: CardInput!, defenceCard: CardInput!): GameState!
+    sayBeat(gameId: ID!): GameState!
 }
 
 type Subscription {
