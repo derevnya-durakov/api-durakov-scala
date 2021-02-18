@@ -138,6 +138,11 @@ class GameService(jmsTemplate: JmsTemplate,
                   if (state.round.size >= 6) {
                     throw new GameException("Round already have 6 cards")
                   }
+                  val defendingPlayer = state.players.find(_.user.id == state.defendingId)
+                    .getOrElse(throw new GameException("Defending player not found in state"))
+                  val unbeatenCount = state.round.count(_.defence.isEmpty) + 1
+                  if (unbeatenCount > defendingPlayer.hand.size)
+                    throw new GameException("Defending player doesn't have enough cards to beat it")
                 }
                 if (!getAvailableCardRanks(state.round).contains(card.rank)) {
                   throw new GameException("No such card rank in round")
