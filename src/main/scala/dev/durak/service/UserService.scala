@@ -14,7 +14,7 @@ class UserService(jmsTemplate: JmsTemplate,
                   authRepo: ICrudRepository[Auth]) {
   private val lock = new Object
 
-  Seq("kolya", "sergo", "sasha").foreach(internalCreateUser)
+  Seq("kolya", "sergo", "sasha", "ilya").foreach(internalCreateUser)
 
   def users: Iterable[User] = userRepo.findAll()
 
