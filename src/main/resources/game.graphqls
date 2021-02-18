@@ -36,6 +36,7 @@ type GameState {
     id: ID!
     nonce: Int!
     trumpSuit: Suit!
+    lastTrump: Card
     deckSize: Int!
     discardPileSize: Int!
     hand: [Card!]!
