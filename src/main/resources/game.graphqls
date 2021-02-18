@@ -43,6 +43,7 @@ type GameState {
     players: [Player!]!
     round: [RoundPair!]!
     defendingId: String!
+    isTaking: Boolean!
 }
 
 type Player {
@@ -84,6 +85,7 @@ type Mutation {
     attack(gameId: ID!, card: CardInput!): GameState!
     defend(gameId: ID!, attackCard: CardInput!, defenceCard: CardInput!): GameState!
     sayBeat(gameId: ID!): GameState!
+    take(gameId: String!): GameState!
 }
 
 type Subscription {

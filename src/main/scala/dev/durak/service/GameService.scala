@@ -26,6 +26,37 @@ class GameService(jmsTemplate: JmsTemplate,
   def getGameState(auth: Auth, id: String): Option[GameState] =
     gameRepo.find(UUID.fromString(id))
 
+  def take(auth: Auth, gameId: String): GameState =
+    lock synchronized {
+      gameRepo.find(UUID.fromString(gameId)) match {
+        case None => throw new GameException("Game not found")
+        case Some(state) =>
+          state.players.find(_.user == auth.user) match {
+            case None => throw new GameException("You are not in the game")
+            case Some(player) =>
+              if (player.user.id != state.defendingId)
+                throw new GameException("You are not defending and cannot take")
+              val allCardsBeaten = state.round.forall(_.defence.isDefined)
+              if (!allCardsBeaten)
+                throw new GameException("You cannot take cards if all cards in round are beaten")
+              val updatedState = gameRepo.update(GameState(
+                state.id,
+                state.seed,
+                state.nonce + 1,
+                state.deck,
+                state.discardPileSize,
+                state.players,
+                state.round,
+                state.defendingId,
+                isTaking = true
+              ))
+              jmsTemplate.convertAndSend(
+                Constants.GAME_UPDATED, new GameEvent(Constants.GAME_TAKE, state.id))
+              updatedState
+          }
+      }
+    }
+
   def sayBeat(auth: Auth, gameId: String): GameState =
     lock synchronized {
       gameRepo.find(UUID.fromString(gameId)) match {
@@ -38,29 +69,83 @@ class GameService(jmsTemplate: JmsTemplate,
                 throw new GameException("You are defending and cannot say beat")
               if (state.round.isEmpty)
                 throw new GameException("No cards in round. You cannot say beat")
-              if (!state.round.map(_.defence).forall(_.isDefined))
-                throw new GameException("Not all cards yet beaten. You cannot say beat")
               if (player.saidBeat)
                 throw new GameException("You already said beat")
-              val updatedPlayers = state.players.map { p =>
-                if (p == player)
-                  Player(p.user, p.hand, saidBeat = true)
-                else
-                  p
+              val hasAllSayBeat = state.players
+                .filterNot(_ == player)
+                .filterNot(_.user.id == state.defendingId)
+                .forall(_.saidBeat)
+              if (hasAllSayBeat) {
+                val cardsInRound = state.round.flatMap { pair =>
+                  if (pair.defence.isDefined)
+                    pair.attack :: pair.defence.get :: Nil
+                  else
+                    pair.attack :: Nil
+                }
+                if (state.isTaking) {
+                  val defender = getDefender(state)
+                  val playersTakenRound = state.players.map { p =>
+                    if (p == defender)
+                      Player(p.user, p.hand ::: cardsInRound, p.saidBeat)
+                    else
+                      p
+                  }
+                  val (updatedPlayers, updatedDeck) = dealCards(playersTakenRound, state.deck)
+                  val newDefender = findNextPlayer(defender, updatedPlayers)
+                  val updatedState = gameRepo.update(GameState(
+                    state.id,
+                    state.seed,
+                    state.nonce + 1,
+                    updatedDeck,
+                    state.discardPileSize,
+                    updatedPlayers,
+                    Nil,
+                    newDefender.user.id,
+                    isTaking = false
+                  ))
+                  jmsTemplate.convertAndSend(
+                    Constants.GAME_UPDATED, new GameEvent(Constants.GAME_TAKEN, state.id))
+                  updatedState
+                } else {
+                  val (updatedPlayers, updatedDeck) = dealCards(state.players, state.deck)
+                  val newDefender = findNextPlayer(getDefender(state), updatedPlayers)
+                  val updatedState = gameRepo.update(GameState(
+                    state.id,
+                    state.seed,
+                    state.nonce + 1,
+                    updatedDeck,
+                    state.discardPileSize + cardsInRound.size,
+                    updatedPlayers,
+                    Nil,
+                    newDefender.user.id,
+                    isTaking = false
+                  ))
+                  jmsTemplate.convertAndSend(
+                    Constants.GAME_UPDATED, new GameEvent(Constants.GAME_BEAT, state.id))
+                  updatedState
+                }
+              } else {
+                val updatedPlayers = state.players.map { p =>
+                  if (p == player)
+                    Player(p.user, p.hand, saidBeat = true)
+                  else
+                    p
+                }
+                val updatedState = gameRepo.update(GameState(
+                  state.id,
+                  state.seed,
+                  state.nonce + 1,
+                  state.deck,
+                  state.discardPileSize,
+                  updatedPlayers,
+                  state.round,
+                  state.defendingId,
+                  state.isTaking
+                ))
+                jmsTemplate.convertAndSend(
+                  Constants.GAME_UPDATED, new GameEvent(Constants.GAME_BEAT, state.id))
+                updatedState
               }
-              val updatedState = gameRepo.update(GameState(
-                state.id,
-                state.seed,
-                state.nonce + 1,
-                state.deck,
-                state.discardPileSize,
-                updatedPlayers,
-                state.round,
-                state.defendingId
-              ))
-              jmsTemplate.convertAndSend(
-                Constants.GAME_UPDATED, new GameEvent(Constants.GAME_BEAT, state.id))
-              updatedState
           }
       }
     }
@@ -74,7 +159,9 @@ class GameService(jmsTemplate: JmsTemplate,
             case None => throw new GameException("You are not in the game")
             case Some(player) =>
               if (auth.user.id != state.defendingId)
-                throw new GameException("You cannot attack. You are defending")
+                throw new GameException("You are not defending")
+              if (state.isTaking)
+                throw new GameException("You are taking and cannot defend")
               if (!player.hand.contains(defenceCard))
                 throw new GameException("You don't have this card")
               state.round.find(_.attack == attackCard) match {
@@ -99,7 +186,8 @@ class GameService(jmsTemplate: JmsTemplate,
                         state.discardPileSize,
                         updatedPlayers,
                         round,
-                        state.defendingId
+                        state.defendingId,
+                        isTaking = false
                       ))
                       jmsTemplate.convertAndSend(
                         Constants.GAME_UPDATED, new GameEvent(Constants.GAME_DEFEND, state.id))
@@ -124,9 +212,17 @@ class GameService(jmsTemplate: JmsTemplate,
                 throw new GameException("You don't have this card")
               if (player.saidBeat)
                 throw new GameException("You marked beat")
+              val attacker = getAttacker(state)
+              if (player.user.id != attacker.user.id) {
+                if (state.round.isEmpty) {
+                  throw new GameException("You are tossing. Wait for first move of attacker")
+                }
+                if (!attacker.saidBeat) {
+                  throw new GameException("Wait while the attacker will say beat")
+                }
+              }
               if (state.round.isEmpty) {
-                val isAttacker = findNextPlayer(player, state.players).user.id == state.defendingId
-                if (!isAttacker) {
+                if (player.user.id != attacker.user.id) {
                   throw new GameException("You are tossing. Wait for first move of attacker")
                 }
               } else {
@@ -138,10 +234,9 @@ class GameService(jmsTemplate: JmsTemplate,
                   if (state.round.size >= 6) {
                     throw new GameException("Round already have 6 cards")
                   }
-                  val defendingPlayer = state.players.find(_.user.id == state.defendingId)
-                    .getOrElse(throw new GameException("Defending player not found in state"))
+                  val defender = getDefender(state)
                   val unbeatenCount = state.round.count(_.defence.isEmpty) + 1
-                  if (unbeatenCount > defendingPlayer.hand.size)
+                  if (unbeatenCount > defender.hand.size)
                     throw new GameException("Defending player doesn't have enough cards to beat it")
                 }
                 if (!getAvailableCardRanks(state.round).contains(card.rank)) {
@@ -159,7 +254,8 @@ class GameService(jmsTemplate: JmsTemplate,
                 state.discardPileSize,
                 updatedPlayers,
                 round,
-                state.defendingId
+                state.defendingId,
+                state.isTaking
               ))
               jmsTemplate.convertAndSend(
                 Constants.GAME_UPDATED, new GameEvent(Constants.GAME_ATTACK, state.id))
@@ -167,6 +263,16 @@ class GameService(jmsTemplate: JmsTemplate,
           }
       }
     }
+
+  private def getAttacker(state: GameState): Player =
+    state.players
+      .find(findNextPlayer(_, state.players).user.id == state.defendingId)
+      .getOrElse(throw new GameException("Attacking player not found in state"))
+
+  private def getDefender(state: GameState): Player =
+    state.players
+      .find(_.user.id == state.defendingId)
+      .getOrElse(throw new GameException("Defending player not found in state"))
 
   private def getAvailableCardRanks(round: List[RoundPair]): Set[Rank] = {
     round.flatMap { pair =>
@@ -187,7 +293,7 @@ class GameService(jmsTemplate: JmsTemplate,
     val playersWithEmptyHands = loadUsers(userIds).map(Player(_, Nil, saidBeat = false))
     val sourceDeck = CardDeck(seed)
     val (players, deck) = dealCards(playersWithEmptyHands, sourceDeck)
-    val defendingId = findNextPlayer(identifyAttacker(players, deck.trumpSuit), players).user.id
+    val defendingId = findNextPlayer(initialIdentifyAttacker(players, deck.trumpSuit), players).user.id
     val gameState = GameState(
       id,
       seed,
@@ -196,7 +302,8 @@ class GameService(jmsTemplate: JmsTemplate,
       discardPileSize = 0,
       players,
       round = Nil,
-      defendingId
+      defendingId,
+      isTaking = false
     )
     jmsTemplate.convertAndSend(
       Constants.GAME_UPDATED, new GameEvent(Constants.GAME_CREATED, id))
@@ -232,7 +339,7 @@ class GameService(jmsTemplate: JmsTemplate,
       .map(_.rank)
       .minOption
 
-  private def identifyAttacker(players: List[Player], trumpSuit: Suit): Player =
+  private def initialIdentifyAttacker(players: List[Player], trumpSuit: Suit): Player =
     players.map { player =>
       player.user -> findMinRankInHand(player.hand, trumpSuit)
     }
@@ -282,7 +389,8 @@ object GameService {
       hand,
       players,
       round,
-      state.defendingId.toString
+      state.defendingId.toString,
+      state.isTaking
     )
   }
 }
