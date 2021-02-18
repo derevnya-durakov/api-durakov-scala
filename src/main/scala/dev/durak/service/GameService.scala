@@ -26,7 +26,54 @@ class GameService(jmsTemplate: JmsTemplate,
   def getGameState(auth: Auth, id: String): Option[GameState] =
     gameRepo.find(UUID.fromString(id))
 
-  //  def defend(auth: Auth, gameId: String, )
+  def defend(auth: Auth, gameId: String, attackCard: Card, defenceCard: Card): GameState =
+    lock synchronized {
+      gameRepo.find(UUID.fromString(gameId)) match {
+        case None => throw new GameException("Game not found")
+        case Some(state) =>
+          state.players.find(_.user == auth.user) match {
+            case None => throw new GameException("You are not in the game")
+            case Some(player) =>
+              if (auth.user.id != state.defendingId)
+                throw new GameException("You cannot attack. You are defending")
+              if (!player.hand.contains(defenceCard))
+                throw new GameException("You don't have this card")
+              state.round.find(_.attack == attackCard) match {
+                case None => throw new GameException("Round has not such card")
+                case Some(roundPair) =>
+                  roundPair.defence match {
+                    case Some(_) => throw new GameException("Card already beaten")
+                    case None =>
+                      val round = state.round.map { pair =>
+                        if (pair == roundPair)
+                          RoundPair(attackCard, Some(defenceCard))
+                        else
+                          pair
+                      }
+                      val updatedPlayers = state.players.map { p =>
+                        if (p.user != auth.user)
+                          p
+                        else
+                          Player(p.user, p.hand.filterNot(_ == defenceCard))
+                      }
+                      val updatedState = gameRepo.update(GameState(
+                        state.id,
+                        state.seed,
+                        state.nonce + 1,
+                        state.deck,
+                        state.discardPileSize,
+                        updatedPlayers,
+                        round,
+                        state.defendingId
+                      ))
+                      jmsTemplate.convertAndSend(
+                        Constants.GAME_UPDATED, new GameEvent(Constants.GAME_DEFEND, state.id))
+                      updatedState
+                  }
+              }
+          }
+      }
+    }
 
   def attack(auth: Auth, gameId: String, card: Card): GameState =
     lock synchronized {
@@ -43,11 +90,17 @@ class GameService(jmsTemplate: JmsTemplate,
               if (state.round.isEmpty) {
                 val isAttacker = findNextPlayer(player, state.players).user.id == state.defendingId
                 if (!isAttacker) {
-                  throw new GameException("You can not attack")
+                  throw new GameException("You are tossing. Wait for first move of attacker")
                 }
               } else {
-                if (state.round.size > 5) {
-                  throw new GameException("Game already have 6 cards")
+                if (state.discardPileSize == 0) {
+                  if (state.round.size >= 5) {
+                    throw new GameException("Round already have 5 cards (first round)")
+                  }
+                } else {
+                  if (state.round.size >= 6) {
+                    throw new GameException("Round already have 6 cards")
+                  }
                 }
                 if (!getAvailableCardRanks(state.round).contains(card.rank)) {
                   throw new GameException("No such card rank in round")

@@ -81,6 +81,7 @@ type Mutation {
     addUser(nickname: String!): User!
     startGame(userIds: [ID!]!): GameState!
     attack(gameId: ID!, card: CardInput!): GameState!
+    defend(gameId: ID!, attackCard: CardInput!, defenceCard: CardInput!): GameState!
 }
 
 type Subscription {

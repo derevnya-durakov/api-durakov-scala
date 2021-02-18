@@ -16,15 +16,25 @@ class MutationResolver(gameService: GameService,
   def addUser(nickname: String, env: DataFetchingEnvironment): User =
     authService.authenticated(env) { _ => playerService.addUser(nickname) }
 
-  def startGame(userIds: java.lang.Iterable[String], env: DataFetchingEnvironment): ExternalGameState =
+  def startGame(userIds: java.lang.Iterable[String],
+                env: DataFetchingEnvironment): ExternalGameState =
     authService.authenticated(env) { auth =>
-      val state = gameService.startGame(auth, userIds.asScala.toList)
-      GameService.convertToExternal(state, auth.user)
+      GameService.convertToExternal(
+        gameService.startGame(auth, userIds.asScala.toList), auth.user)
     }
 
   def attack(gameId: String, card: Card, env: DataFetchingEnvironment): ExternalGameState =
     authService.authenticated(env) { auth =>
-      val state = gameService.attack(auth, gameId, card)
-      GameService.convertToExternal(state, auth.user)
+      GameService.convertToExternal(
+        gameService.attack(auth, gameId, card), auth.user)
+    }
+
+  def defend(gameId: String,
+             attackCard: Card,
+             defenceCard: Card,
+             env: DataFetchingEnvironment): ExternalGameState =
+    authService.authenticated(env) { auth =>
+      GameService.convertToExternal(
+        gameService.defend(auth, gameId, attackCard, defenceCard), auth.user)
     }
 }
