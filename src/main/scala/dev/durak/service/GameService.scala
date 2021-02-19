@@ -170,6 +170,8 @@ class GameService(jmsTemplate: JmsTemplate,
                   roundPair.defence match {
                     case Some(_) => throw new GameException("Card already beaten")
                     case None =>
+                      if (!Card.canBeat(attackCard, defenceCard, state.deck.trumpSuit))
+                        throw new GameException("You card is weaker than attacking card")
                       val round = state.round.map { pair =>
                         if (pair == roundPair)
                           RoundPair(attackCard, Some(defenceCard))
