@@ -86,6 +86,7 @@ type Mutation {
     defend(gameId: ID!, attackCard: CardInput!, defenceCard: CardInput!): GameState!
     sayBeat(gameId: ID!): GameState!
     take(gameId: String!): GameState!
+    testRestartGame: Boolean!
 }
 
 type Subscription {

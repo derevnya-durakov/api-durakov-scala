@@ -16,6 +16,8 @@ class MutationResolver(gameService: GameService,
   def addUser(nickname: String, env: DataFetchingEnvironment): User =
     authService.authenticated(env) { _ => playerService.addUser(nickname) }
 
+  def testRestartGame(): Boolean = gameService.testRestartGame()
+
   def startGame(userIds: java.lang.Iterable[String],
                 env: DataFetchingEnvironment): ExternalGameState =
     authService.authenticated(env) { auth =>

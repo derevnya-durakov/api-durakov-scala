@@ -26,6 +26,15 @@ class GameService(jmsTemplate: JmsTemplate,
   def getGameState(auth: Auth, id: String): Option[GameState] =
     gameRepo.find(UUID.fromString(id))
 
+  def testRestartGame(): Boolean = {
+    val userIds = getGameState(null, GameService.TestGameId)
+      .get
+      .players
+      .map(_.user.id.toString)
+    startGame(null, userIds)
+    true
+  }
+
   def take(auth: Auth, gameId: String): GameState =
     lock synchronized {
       gameRepo.find(UUID.fromString(gameId)) match {
@@ -290,7 +299,7 @@ class GameService(jmsTemplate: JmsTemplate,
     if (userIds.size < 2 || userIds.size > 6) {
       throw new GameException("Players size must be 2 <= x <= 6")
     }
-    val id = UUID.fromString("0c52f37c-399c-4304-9d39-34d08b3ae1ba") // hardcoded for tests
+    val id = UUID.fromString(GameService.TestGameId) // hardcoded for tests
     val seed = 123 // hardcoded for tests
     val playersWithEmptyHands = loadUsers(userIds).map(Player(_, Nil, saidBeat = false))
     val sourceDeck = CardDeck(seed)
@@ -374,6 +383,8 @@ class GameService(jmsTemplate: JmsTemplate,
 }
 
 object GameService {
+  private val TestGameId = "0c52f37c-399c-4304-9d39-34d08b3ae1ba"
+
   def convertToExternal(state: GameState, user: User): ExternalGameState = {
     import scala.jdk.CollectionConverters._
     import scala.jdk.OptionConverters._
