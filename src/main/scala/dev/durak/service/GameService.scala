@@ -96,7 +96,9 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                       p
                   }
                   val (updatedPlayers, updatedDeck) = dealCards(playersTakenRound, state.deck)
-                  val newDefender = findNextPlayer(defender, updatedPlayers)
+                  // skip player if he took cards from round
+                  val skippingDefender = findNextPlayer(defender, updatedPlayers)
+                  val newDefender = findNextPlayer(skippingDefender, updatedPlayers)
                   val updatedState = gameRepo.update(GameState(
                     state.id,
                     state.seed,
