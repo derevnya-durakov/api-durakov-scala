@@ -9,5 +9,6 @@ case class GameState(id: UUID,
                      discardPileSize: Int,
                      players: List[Player],
                      round: List[RoundPair],
-                     defendingId: UUID,
+                     attacker: Player,
+                     defender: Player,
                      isTaking: Boolean) extends Identifiable
