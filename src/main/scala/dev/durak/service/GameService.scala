@@ -43,7 +43,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
               if (player.user.id != state.defendingId)
                 throw new GameException("You are not defending and cannot take")
               val allCardsBeaten = state.round.forall(_.defence.isDefined)
-              if (!allCardsBeaten)
+              if (allCardsBeaten)
                 throw new GameException("You cannot take cards if all cards in round are beaten")
               val updatedState = gameRepo.update(GameState(
                 state.id,
