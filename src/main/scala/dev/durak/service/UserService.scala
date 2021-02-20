@@ -3,18 +3,22 @@ package dev.durak.service
 import dev.durak.graphql.Constants
 import dev.durak.model.{Auth, User, UserEvent}
 import dev.durak.repo.ICrudRepository
-import org.springframework.jms.core.JmsTemplate
+import org.springframework.jms.core.{JmsOperations, JmsTemplate}
 import org.springframework.stereotype.Service
 
 import java.util.UUID
 
 @Service
-class UserService(jmsTemplate: JmsTemplate,
+class UserService(jmsTemplate: JmsOperations,
                   userRepo: ICrudRepository[User],
                   authRepo: ICrudRepository[Auth]) {
   private val lock = new Object
 
-  Seq("kolya", "sergo", "sasha" /*, "ilya" */).foreach(internalCreateUser)
+  Seq(
+    User(UUID.fromString("832e3859-c1f9-4a2e-803e-427850570800"), "sergo"),
+    User(UUID.fromString("e7f1e462-c04c-4ae4-bc9d-989f648433f6"), "kolya"),
+    User(UUID.fromString("ca46a32a-615a-4d87-80b9-d2c3aa174581"), "sasha"),
+  ).map(userRepo.create).map(Auth(_)).foreach(authRepo.create)
 
   def users: Iterable[User] = userRepo.findAll()
 

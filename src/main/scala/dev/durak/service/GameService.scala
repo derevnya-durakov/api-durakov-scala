@@ -5,7 +5,7 @@ import dev.durak.graphql.Constants
 import dev.durak.model._
 import dev.durak.model.external.{ExternalGameState, ExternalPlayer, ExternalRoundPair}
 import dev.durak.repo.ICrudRepository
-import org.springframework.jms.core.JmsTemplate
+import org.springframework.jms.core.JmsOperations
 import org.springframework.stereotype.Service
 
 import java.util.UUID
@@ -13,12 +13,9 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 
 @Service
-class GameService(jmsTemplate: JmsTemplate,
-                  authService: AuthService,
+class GameService(jmsTemplate: JmsOperations,
                   userService: UserService,
-                  gameRepo: ICrudRepository[GameState],
-                  userRepo: ICrudRepository[User],
-                  authRepo: ICrudRepository[Auth]) {
+                  gameRepo: ICrudRepository[GameState]) {
   private val lock = new Object // todo: separate locks for each game
   // just for testing
   startGame(null, userService.users.slice(0, 3).map(_.id.toString).toList)
@@ -117,7 +114,8 @@ class GameService(jmsTemplate: JmsTemplate,
                   updatedState
                 } else {
                   val (updatedPlayers, updatedDeck) = dealCards(state.players, state.deck)
-                  val newDefender = findNextPlayer(getDefender(state), updatedPlayers)
+                  val currentDefender = getDefender(state)
+                  val newDefender = findNextPlayer(currentDefender, updatedPlayers)
                   val updatedState = gameRepo.update(GameState(
                     state.id,
                     state.seed,
@@ -328,7 +326,7 @@ class GameService(jmsTemplate: JmsTemplate,
   @tailrec
   private def findNextPlayer(currentPlayer: Player,
                              players: List[Player]): Player = {
-    if (!players.contains(currentPlayer))
+    if (!players.exists(_.user.id == currentPlayer.user.id))
       throw new GameException("Try to find next player in list of players not containing current")
     if (players.map(_.hand).forall(_.isEmpty))
       throw new GameException("Try to get next player when all players have empty hands")
@@ -373,17 +371,15 @@ class GameService(jmsTemplate: JmsTemplate,
   }
 
   private def loadUsers(userIds: List[String]): List[User] =
-    try {
-      userIds
-        .map(UUID.fromString)
-        .map(id => userRepo.find(id).getOrElse(throw new GameException(s"User $id not found")))
-    } catch {
-      case e: IllegalArgumentException => throw new GameException(e.getMessage)
-    }
+    userIds
+      .map { id =>
+        userService.findUser(id)
+          .getOrElse(throw new GameException(s"User $id not found"))
+      }
 }
 
 object GameService {
-  private val TestGameId = "0c52f37c-399c-4304-9d39-34d08b3ae1ba"
+  val TestGameId = "0c52f37c-399c-4304-9d39-34d08b3ae1ba"
 
   def convertToExternal(state: GameState, user: User): ExternalGameState = {
     import scala.jdk.CollectionConverters._
