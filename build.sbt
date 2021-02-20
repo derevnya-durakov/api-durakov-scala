@@ -10,7 +10,6 @@ libraryDependencies ++= {
 
   Seq(
     "io.reactivex.rxjava2" % "rxjava" % "2.2.20",
-    "org.springframework.boot" % "spring-boot-starter-activemq" % springBootVersion,
     "org.springframework.boot" % "spring-boot-starter-test" % springBootVersion,
     "com.graphql-java-kickstart" % "graphql-spring-boot-starter" % graphqlVersion,
     "com.graphql-java-kickstart" % "playground-spring-boot-starter" % graphqlVersion,

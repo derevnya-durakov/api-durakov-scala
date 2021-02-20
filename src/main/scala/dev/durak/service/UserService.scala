@@ -3,13 +3,13 @@ package dev.durak.service
 import dev.durak.graphql.Constants
 import dev.durak.model.{Auth, User, UserEvent}
 import dev.durak.repo.ICrudRepository
-import org.springframework.jms.core.{JmsOperations, JmsTemplate}
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 
 import java.util.UUID
 
 @Service
-class UserService(jmsTemplate: JmsOperations,
+class UserService(eventPublisher: ApplicationEventPublisher,
                   userRepo: ICrudRepository[User],
                   authRepo: ICrudRepository[Auth]) {
   private val lock = new Object
@@ -26,8 +26,7 @@ class UserService(jmsTemplate: JmsOperations,
 
   def addUser(nickname: String): User = {
     val createdUser = internalCreateUser(nickname)
-    jmsTemplate.convertAndSend(
-      Constants.USER_CREATED, new UserEvent(Constants.USER_CREATED, createdUser))
+    eventPublisher.publishEvent(new UserEvent(Constants.USER_CREATED, createdUser))
     createdUser
   }
 

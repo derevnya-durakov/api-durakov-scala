@@ -29,5 +29,5 @@ class EventPublisher(userEventEmitter: UserEventEmitter,
   def getUserCreatedPublisher: Flowable[UserEvent] = userCreatedFlowable
 
   def getGameEventPublisher(id: String): Flowable[GameEvent] =
-    gameEventFlowable.filter(_.gameId.toString == id)
+    gameEventFlowable.filter(_.state.id.toString == id)
 }

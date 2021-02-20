@@ -1,7 +1,8 @@
 package dev.durak.graphql
 
-import dev.durak.model.{GameEvent, UserEvent}
-import dev.durak.service.{AuthService, UserService}
+import dev.durak.model.UserEvent
+import dev.durak.model.external.ExternalGameEvent
+import dev.durak.service.{AuthService, GameService, UserService}
 import graphql.kickstart.tools.GraphQLSubscriptionResolver
 import graphql.schema.DataFetchingEnvironment
 import org.reactivestreams.Publisher
@@ -14,6 +15,12 @@ class SubscriptionResolver(eventPublisher: EventPublisher,
   def usersUpdated(env: DataFetchingEnvironment): Publisher[UserEvent] =
     authService.authenticated(env) { _ => eventPublisher.getUserCreatedPublisher }
 
-  def gameUpdated(gameId: String, env: DataFetchingEnvironment): Publisher[GameEvent] =
-    authService.authenticated(env) { _ => eventPublisher.getGameEventPublisher(gameId) }
+  def gameUpdated(gameId: String, env: DataFetchingEnvironment): Publisher[ExternalGameEvent] =
+    authService.authenticated(env) { auth =>
+      eventPublisher
+        .getGameEventPublisher(gameId)
+        .map { event =>
+          new ExternalGameEvent(event.name, GameService.convertToExternal(event.state, auth.user))
+        }
+    }
 }

@@ -2,10 +2,10 @@ package dev.durak.service
 
 import dev.durak.exceptions.GameException
 import dev.durak.graphql.Constants
-import dev.durak.model._
 import dev.durak.model.external.{ExternalGameState, ExternalPlayer, ExternalRoundPair}
+import dev.durak.model.{GameEvent, _}
 import dev.durak.repo.ICrudRepository
-import org.springframework.jms.core.JmsOperations
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 
 import java.util.UUID
@@ -13,7 +13,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 
 @Service
-class GameService(jmsTemplate: JmsOperations,
+class GameService(eventPublisher: ApplicationEventPublisher,
                   userService: UserService,
                   gameRepo: ICrudRepository[GameState]) {
   private val lock = new Object // todo: separate locks for each game
@@ -56,8 +56,7 @@ class GameService(jmsTemplate: JmsOperations,
                 state.defendingId,
                 isTaking = true
               ))
-              jmsTemplate.convertAndSend(
-                Constants.GAME_UPDATED, new GameEvent(Constants.GAME_TAKE, state.id))
+              eventPublisher.publishEvent(new GameEvent(Constants.GAME_TAKE, updatedState))
               updatedState
           }
       }
@@ -109,8 +108,7 @@ class GameService(jmsTemplate: JmsOperations,
                     newDefender.user.id,
                     isTaking = false
                   ))
-                  jmsTemplate.convertAndSend(
-                    Constants.GAME_UPDATED, new GameEvent(Constants.GAME_TAKEN, state.id))
+                  eventPublisher.publishEvent(new GameEvent(Constants.GAME_TAKEN, updatedState))
                   updatedState
                 } else {
                   val (updatedPlayers, updatedDeck) = dealCards(state.players, state.deck)
@@ -127,8 +125,7 @@ class GameService(jmsTemplate: JmsOperations,
                     newDefender.user.id,
                     isTaking = false
                   ))
-                  jmsTemplate.convertAndSend(
-                    Constants.GAME_UPDATED, new GameEvent(Constants.GAME_BEAT, state.id))
+                  eventPublisher.publishEvent(new GameEvent(Constants.GAME_BEAT, updatedState))
                   updatedState
                 }
               } else {
@@ -149,8 +146,7 @@ class GameService(jmsTemplate: JmsOperations,
                   state.defendingId,
                   state.isTaking
                 ))
-                jmsTemplate.convertAndSend(
-                  Constants.GAME_UPDATED, new GameEvent(Constants.GAME_BEAT, state.id))
+                eventPublisher.publishEvent(new GameEvent(Constants.GAME_BEAT, updatedState))
                 updatedState
               }
           }
@@ -198,8 +194,7 @@ class GameService(jmsTemplate: JmsOperations,
                         state.defendingId,
                         isTaking = false
                       ))
-                      jmsTemplate.convertAndSend(
-                        Constants.GAME_UPDATED, new GameEvent(Constants.GAME_DEFEND, state.id))
+                      eventPublisher.publishEvent(new GameEvent(Constants.GAME_DEFEND, updatedState))
                       updatedState
                   }
               }
@@ -266,8 +261,7 @@ class GameService(jmsTemplate: JmsOperations,
                 state.defendingId,
                 state.isTaking
               ))
-              jmsTemplate.convertAndSend(
-                Constants.GAME_UPDATED, new GameEvent(Constants.GAME_ATTACK, state.id))
+              eventPublisher.publishEvent(new GameEvent(Constants.GAME_ATTACK, updatedState))
               updatedState
           }
       }
@@ -314,8 +308,7 @@ class GameService(jmsTemplate: JmsOperations,
       defendingId,
       isTaking = false
     )
-    jmsTemplate.convertAndSend(
-      Constants.GAME_UPDATED, new GameEvent(Constants.GAME_CREATED, id))
+    eventPublisher.publishEvent(new GameEvent(Constants.GAME_CREATED, gameState))
     // for testing
     if (gameRepo.exists(id))
       gameRepo.update(gameState)

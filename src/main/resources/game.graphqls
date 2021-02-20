@@ -69,6 +69,7 @@ type UserEvent {
 
 type GameEvent {
     name: String!
+    state: GameState!
 }
 
 type Query {
