@@ -18,7 +18,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                   gameRepo: ICrudRepository[GameState]) {
   private val lock = new Object // todo: separate locks for each game
   // just for testing
-  startGame(null, userService.users.slice(0, 3).map(_.id.toString).toList)
+  startGame(null, userService.users.slice(0, 5).map(_.id.toString).toList)
 
   def getGameState(auth: Auth, id: String): Option[GameState] =
     gameRepo.find(UUID.fromString(id))

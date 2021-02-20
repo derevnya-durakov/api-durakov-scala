@@ -18,6 +18,9 @@ class UserService(eventPublisher: ApplicationEventPublisher,
     User(UUID.fromString("832e3859-c1f9-4a2e-803e-427850570800"), "sergo"),
     User(UUID.fromString("e7f1e462-c04c-4ae4-bc9d-989f648433f6"), "kolya"),
     User(UUID.fromString("ca46a32a-615a-4d87-80b9-d2c3aa174581"), "sasha"),
+    User(UUID.fromString("aae099d4-9ce2-46f3-a74f-f420f86c83ee"), "ilyan"),
+    User(UUID.fromString("22f51ea3-7609-4d0d-97bd-7385610c66d7"), "user1"),
+    User(UUID.fromString("efe3768d-b9a2-4562-b21a-2beffe74b759"), "user2"),
   ).map(userRepo.create).map(Auth(_)).foreach(authRepo.create)
 
   def users: Iterable[User] = userRepo.findAll()
