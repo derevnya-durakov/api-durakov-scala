@@ -247,7 +247,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                   throw new GameException("No such card rank in round")
                 }
               }
-              val round = RoundPair(card, None) :: state.round
+              val round = state.round :+ RoundPair(card, None)
               val updatedPlayers = state.players
                 .map(p => Player(p.user, p.hand.filterNot(_ == card), saidBeat = false))
               val updatedState = gameRepo.update(GameState(
