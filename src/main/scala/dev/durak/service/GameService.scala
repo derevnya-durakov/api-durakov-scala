@@ -323,7 +323,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       throw new GameException("Try to find next player in list of players not containing current")
     if (players.map(_.hand).forall(_.isEmpty))
       throw new GameException("Try to get next player when all players have empty hands")
-    val nextPlayer = players(findNextCircleIndex(currentPlayer, players))
+    val realCurrentPlayer = players.find(_.user.id == currentPlayer.user.id).get
+    val nextPlayer = players(findNextCircleIndex(realCurrentPlayer, players))
     if (nextPlayer.hand.nonEmpty)
       nextPlayer
     else

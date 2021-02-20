@@ -13,7 +13,7 @@ libraryDependencies ++= {
     "org.springframework.boot" % "spring-boot-starter-test" % springBootVersion,
     "com.graphql-java-kickstart" % "graphql-spring-boot-starter" % graphqlVersion,
     "com.graphql-java-kickstart" % "playground-spring-boot-starter" % graphqlVersion,
-    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.1"
+//    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.1"
   )
 }
 enablePlugins(JavaAppPackaging, AshScriptPlugin)
