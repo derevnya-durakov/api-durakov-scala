@@ -86,7 +86,7 @@ type Mutation {
     attack(gameId: ID!, card: CardInput!): GameState!
     defend(gameId: ID!, attackCard: CardInput!, defenceCard: CardInput!): GameState!
     sayBeat(gameId: ID!): GameState!
-    take(gameId: String!): GameState!
+    take(gameId: ID!): GameState!
     testRestartGame: Boolean!
 }
 
