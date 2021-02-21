@@ -21,13 +21,13 @@ class MutationResolver(gameService: GameService,
   def startGame(userIds: java.lang.Iterable[String],
                 env: DataFetchingEnvironment): ExternalGameState =
     authService.authenticated(env) { auth =>
-      GameService.convertToExternal(
+      GameService.toExternal(
         gameService.startGame(auth, userIds.asScala.toList), auth.user)
     }
 
   def attack(gameId: String, card: Card, env: DataFetchingEnvironment): ExternalGameState =
     authService.authenticated(env) { auth =>
-      GameService.convertToExternal(
+      GameService.toExternal(
         gameService.attack(auth, gameId, card), auth.user)
     }
 
@@ -36,17 +36,17 @@ class MutationResolver(gameService: GameService,
              defenceCard: Card,
              env: DataFetchingEnvironment): ExternalGameState =
     authService.authenticated(env) { auth =>
-      GameService.convertToExternal(
+      GameService.toExternal(
         gameService.defend(auth, gameId, attackCard, defenceCard), auth.user)
     }
 
   def sayBeat(gameId: String, env: DataFetchingEnvironment): ExternalGameState =
     authService.authenticated(env) { auth =>
-      GameService.convertToExternal(gameService.sayBeat(auth, gameId), auth.user)
+      GameService.toExternal(gameService.sayBeat(auth, gameId), auth.user)
     }
 
   def take(gameId: String, env: DataFetchingEnvironment): ExternalGameState =
     authService.authenticated(env) { auth =>
-      GameService.convertToExternal(gameService.take(auth, gameId), auth.user)
+      GameService.toExternal(gameService.take(auth, gameId), auth.user)
     }
 }

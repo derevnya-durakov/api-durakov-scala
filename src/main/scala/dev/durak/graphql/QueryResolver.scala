@@ -32,7 +32,7 @@ class QueryResolver(gameService: GameService,
     authService.authenticated(env) { auth =>
       gameService
         .getGameState(auth, id)
-        .map(GameService.convertToExternal(_, auth.user))
+        .map(GameService.toExternal(_, auth.user))
         .toJava
     }
 }

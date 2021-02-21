@@ -20,7 +20,7 @@ class SubscriptionResolver(eventPublisher: EventPublisher,
       eventPublisher
         .getGameEventPublisher(gameId)
         .map { event =>
-          ExternalGameEvent(event.name, GameService.convertToExternal(event.state, auth.user))
+          ExternalGameEvent(event.name, GameService.toExternal(event.state, auth.user))
         }
     }
 }

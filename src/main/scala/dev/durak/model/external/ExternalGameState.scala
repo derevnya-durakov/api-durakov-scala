@@ -13,5 +13,7 @@ case class ExternalGameState(id: String,
                              hand: java.util.List[Card],
                              players: java.util.List[ExternalPlayer],
                              round: java.util.List[ExternalRoundPair],
-                             defendingId: String,
+                             attacker: ExternalPlayer,
+                             defender: ExternalPlayer,
+                             defendingId: String /* todo: remove, deprecated field */ ,
                              isTaking: Boolean)

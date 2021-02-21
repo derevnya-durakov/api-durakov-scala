@@ -139,6 +139,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                   else
                     p
                 }
+                val updatedAttacker = updatedPlayers.find(_.user == state.attacker.user).get
                 val updatedState = gameRepo.update(GameState(
                   state.id,
                   state.seed,
@@ -147,7 +148,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                   state.discardPileSize,
                   updatedPlayers,
                   state.round,
-                  state.attacker,
+                  updatedAttacker,
                   state.defender,
                   state.isTaking
                 ))
@@ -186,8 +187,15 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                         else
                           pair
                       }
-                      val updatedPlayers = state.players
-                        .map(p => Player(p.user, p.hand.filterNot(_ == defenceCard), saidBeat = false))
+                      val defender = state.defender
+                      val updatedDefender = Player(
+                        defender.user,
+                        defender.hand.filterNot(_ == defenceCard),
+                        saidBeat = false
+                      )
+                      val updatedPlayers = state.players.map { p =>
+                        if (p.user == defender.user) updatedDefender else p
+                      }
                       val updatedState = gameRepo.update(GameState(
                         state.id,
                         state.seed,
@@ -197,7 +205,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                         updatedPlayers,
                         round,
                         state.attacker,
-                        state.defender,
+                        updatedDefender,
                         isTaking = false
                       ))
                       eventPublisher.publishEvent(new GameEvent(Constants.GAME_DEFEND, updatedState))
@@ -244,8 +252,14 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                 }
               }
               val round = state.round :+ RoundPair(card, None)
-              val updatedPlayers = state.players
-                .map(p => Player(p.user, p.hand.filterNot(_ == card), saidBeat = false))
+              val attacker = state.attacker
+              val updatedAttacker = Player(
+                attacker.user,
+                attacker.hand.filterNot(_ == card),
+                saidBeat = false)
+              val updatedPlayers = state.players.map { p =>
+                if (p.user == attacker.user) updatedAttacker else p
+              }
               val updatedState = gameRepo.update(GameState(
                 state.id,
                 state.seed,
@@ -254,7 +268,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                 state.discardPileSize,
                 updatedPlayers,
                 round,
-                state.attacker,
+                updatedAttacker,
                 state.defender,
                 state.isTaking
               ))
@@ -363,13 +377,13 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 object GameService {
   val TestGameId = "0c52f37c-399c-4304-9d39-34d08b3ae1ba"
 
-  def convertToExternal(state: GameState, user: User): ExternalGameState = {
+  def toExternal(state: GameState, user: User): ExternalGameState = {
     import scala.jdk.CollectionConverters._
     import scala.jdk.OptionConverters._
     val hand = state.players.find(_.user == user).map(_.hand)
       .getOrElse(throw new GameException("User is not player of the game")).asJava
-    val players = state.players.map(p => ExternalPlayer(p.user, p.hand.size, p.saidBeat)).asJava
-    val round = state.round.map(r => ExternalRoundPair(r.attack, r.defence.toJava)).asJava
+    val players = state.players.map(toExternal).asJava
+    val round = state.round.map(toExternal).asJava
     ExternalGameState(
       state.id.toString,
       state.nonce,
@@ -380,8 +394,18 @@ object GameService {
       hand,
       players,
       round,
+      toExternal(state.attacker),
+      toExternal(state.defender),
       state.defender.user.id.toString,
       state.isTaking
     )
   }
+
+  def toExternal(roundPair: RoundPair): ExternalRoundPair = {
+    import scala.jdk.OptionConverters._
+    ExternalRoundPair(roundPair.attack, roundPair.defence.toJava)
+  }
+
+  def toExternal(player: Player): ExternalPlayer =
+    ExternalPlayer(player.user, player.hand.size, player.saidBeat)
 }

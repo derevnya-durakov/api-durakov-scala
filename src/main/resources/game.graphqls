@@ -42,6 +42,9 @@ type GameState {
     hand: [Card!]!
     players: [Player!]!
     round: [RoundPair!]!
+    attacker: Player!
+    defender: Player!
+    # deprecated
     defendingId: String!
     isTaking: Boolean!
 }
