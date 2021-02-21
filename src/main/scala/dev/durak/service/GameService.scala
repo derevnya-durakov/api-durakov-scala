@@ -257,16 +257,16 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                 }
               }
               val round = state.round :+ RoundPair(card, None)
-              val attacker = state.attacker
-              val updatedAttacker = Player(
-                attacker.user,
-                attacker.hand.filterNot(_ == card),
+              val updatedPlayer = Player(
+                player.user,
+                player.hand.filterNot(_ == card),
                 saidBeat = false,
                 done = None
               )
               val updatedPlayers = state.players.map { p =>
-                if (p.user == attacker.user) updatedAttacker else p
+                if (p.user == player.user) updatedPlayer else p
               }
+              val updatedAttacker = updatedPlayers.find(_.user == state.attacker.user).get
               val updatedState = gameRepo.update(GameState(
                 state.id,
                 state.seed,
