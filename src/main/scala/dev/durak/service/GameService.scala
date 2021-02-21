@@ -235,27 +235,17 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                 throw new GameException("You don't have this card")
               if (player.saidBeat)
                 throw new GameException("You marked beat")
-              if (state.round.isEmpty) {
-                if (player.user.id != state.attacker.user.id) {
-                  throw new GameException("You are tossing. Wait for first move of attacker")
-                }
-              } else {
-                if (state.discardPileSize == 0) {
-                  if (state.round.size >= 5) {
-                    throw new GameException("Round already have 5 cards (first round)")
-                  }
-                } else {
-                  if (state.round.size >= 6) {
-                    throw new GameException("Round already have 6 cards")
-                  }
-                  val unbeatenCount = state.round.count(_.defence.isEmpty) + 1
-                  if (unbeatenCount > state.defender.hand.size)
-                    throw new GameException("Defending player doesn't have enough cards to beat it")
-                }
-                if (!getRoundRanks(state.round).contains(card.rank)) {
-                  throw new GameException("No such card rank in round")
-                }
-              }
+              if (state.round.isEmpty && player.user.id != state.attacker.user.id)
+                throw new GameException("You are tossing. Wait for first move of attacker")
+              if (state.round.nonEmpty && !getRoundRanks(state.round).contains(card.rank))
+                throw new GameException("No such card rank in round")
+              if (state.discardPileSize == 0 && state.round.size >= 5)
+                throw new GameException("Round already have 5 cards (first round)")
+              if (state.round.size >= 6)
+                throw new GameException("Round already have 6 cards")
+              val unbeatenCount = state.round.count(_.defence.isEmpty) + 1
+              if (unbeatenCount > state.defender.hand.size)
+                throw new GameException("Defending player doesn't have enough cards to beat it")
               val round = state.round :+ RoundPair(card, None)
               val updatedPlayer = Player(
                 player.user,
