@@ -10,7 +10,8 @@ import org.springframework.stereotype.Service
 
 import java.util.UUID
 import scala.annotation.tailrec
-import scala.collection.mutable
+import scala.jdk.CollectionConverters._
+import scala.jdk.OptionConverters._
 
 @Service
 class GameService(eventPublisher: ApplicationEventPublisher,
@@ -73,12 +74,15 @@ class GameService(eventPublisher: ApplicationEventPublisher,
             case Some(player) =>
               if (player.user.id == state.defender.user.id)
                 throw new GameException("You are defending and cannot say beat")
+              if (player.done.isDefined)
+                throw new GameException("You are done and cannot say beat")
               if (state.round.isEmpty)
                 throw new GameException("No cards in round. You cannot say beat")
               if (player.saidBeat)
                 throw new GameException("You already said beat")
               val hasAllSayBeat = state.players
                 .filterNot(_ == player)
+                .filterNot(_.hand.isEmpty)
                 .filterNot(_.user.id == state.defender.user.id)
                 .forall(_.saidBeat)
               if (hasAllSayBeat) {
@@ -91,7 +95,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                 if (state.isTaking) {
                   val playersTakenRound = state.players.map { p =>
                     if (p == state.defender)
-                      Player(p.user, p.hand ::: cardsInRound, p.saidBeat)
+                      Player(p.user, p.hand ::: cardsInRound, p.saidBeat, p.done)
                     else
                       p
                   }
@@ -135,7 +139,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
               } else {
                 val updatedPlayers = state.players.map { p =>
                   if (p == player)
-                    Player(p.user, p.hand, saidBeat = true)
+                    Player(p.user, p.hand, saidBeat = true, p.done)
                   else
                     p
                 }
@@ -191,7 +195,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                       val updatedDefender = Player(
                         defender.user,
                         defender.hand.filterNot(_ == defenceCard),
-                        saidBeat = false
+                        saidBeat = false,
+                        done = None
                       )
                       val updatedPlayers = state.players.map { p =>
                         if (p.user == defender.user) updatedDefender else p
@@ -256,7 +261,9 @@ class GameService(eventPublisher: ApplicationEventPublisher,
               val updatedAttacker = Player(
                 attacker.user,
                 attacker.hand.filterNot(_ == card),
-                saidBeat = false)
+                saidBeat = false,
+                done = None
+              )
               val updatedPlayers = state.players.map { p =>
                 if (p.user == attacker.user) updatedAttacker else p
               }
@@ -294,7 +301,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     }
     val id = UUID.fromString(GameService.TestGameId) // hardcoded for tests
     val seed = 123 // hardcoded for tests
-    val playersWithEmptyHands = loadUsers(userIds).map(Player(_, Nil, saidBeat = false))
+    val playersWithEmptyHands = loadUsers(userIds)
+      .map(Player(_, Nil, saidBeat = false, done = None))
     val sourceDeck = CardDeck(seed)
     val (players, deck) = dealCards(playersWithEmptyHands, sourceDeck)
     val attacker = initialDecideWhoAttacker(players, deck.trumpSuit)
@@ -356,14 +364,22 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   private def dealCards(sourcePlayers: List[Player],
                         sourceDeck: CardDeck): (List[Player], CardDeck) = {
-    val playersMap = mutable.Map[User, List[Card]](sourcePlayers.map(p => (p.user, p.hand)): _*)
+    var doneCounter = sourcePlayers.count(_.done.isDefined)
     var deck = sourceDeck
-    for (user <- playersMap.keySet) {
-      val (updatedHand, updatedDeck) = deck.fillHand(playersMap(user), targetHandSize = 6)
-      playersMap.put(user, updatedHand)
+    val players = for (player <- sourcePlayers) yield {
+      val (updatedHand, updatedDeck) = deck.fillHand(player.hand, targetHandSize = 6)
       deck = updatedDeck
+      val done = if (player.done.isDefined) {
+        player.done
+      } else if (updatedHand.isEmpty) {
+        doneCounter = doneCounter + 1
+        Some(doneCounter)
+      } else {
+        None
+      }
+      Player(player.user, updatedHand, saidBeat = false, done)
     }
-    (playersMap.map(e => Player(e._1, e._2, saidBeat = false)).toList, deck)
+    (players, deck)
   }
 
   private def loadUsers(userIds: List[String]): List[User] =
@@ -378,8 +394,6 @@ object GameService {
   val TestGameId = "0c52f37c-399c-4304-9d39-34d08b3ae1ba"
 
   def toExternal(state: GameState, user: User): ExternalGameState = {
-    import scala.jdk.CollectionConverters._
-    import scala.jdk.OptionConverters._
     val hand = state.players.find(_.user == user).map(_.hand)
       .getOrElse(throw new GameException("User is not player of the game")).asJava
     val players = state.players.map(toExternal).asJava
@@ -401,11 +415,9 @@ object GameService {
     )
   }
 
-  def toExternal(roundPair: RoundPair): ExternalRoundPair = {
-    import scala.jdk.OptionConverters._
+  def toExternal(roundPair: RoundPair): ExternalRoundPair =
     ExternalRoundPair(roundPair.attack, roundPair.defence.toJava)
-  }
 
   def toExternal(player: Player): ExternalPlayer =
-    ExternalPlayer(player.user, player.hand.size, player.saidBeat)
+    ExternalPlayer(player.user, player.hand.size, player.saidBeat, player.done.toJava)
 }

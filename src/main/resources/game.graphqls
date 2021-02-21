@@ -53,6 +53,7 @@ type Player {
     user: User!
     handSize: Int!
     saidBeat: Boolean!
+    done: Int
 }
 
 type User {
