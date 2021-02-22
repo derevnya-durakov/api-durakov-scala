@@ -5,6 +5,7 @@ import dev.durak.graphql.Constants
 import dev.durak.model.external.{ExternalGameState, ExternalPlayer, ExternalRoundPair}
 import dev.durak.model.{GameEvent, _}
 import dev.durak.repo.ICrudRepository
+import dev.durak.util.GameCheckUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 
@@ -38,29 +39,25 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       .find(UUID.fromString(gameId))
       .getOrElse(throw new GameException("Game not found")))
 
-  private def withPlayer[T](auth: Auth, state: GameState)(action: Player => T): T =
-    action(state
+  private def withMe[T](auth: Auth, game: GameState)(action: Player => T): T =
+    action(game
       .players
       .find(_.user.id == auth.user.id)
       .getOrElse(throw new GameException("You are not in the game")))
 
-  private def withGameAndPlayer[T](auth: Auth, gameId: String)
-                                  (action: (GameState, Player) => T): T = {
-    withGame(gameId) { state =>
-      withPlayer(auth, state) { player =>
-        action(state, player)
+  private def withGameAndMe[T](auth: Auth, gameId: String)
+                              (action: (GameState, Player) => T): T = {
+    withGame(gameId) { game =>
+      withMe(auth, game) { me =>
+        action(game, me)
       }
     }
   }
 
   def take(auth: Auth, gameId: String): GameState =
     lock synchronized {
-      withGameAndPlayer(auth, gameId) { (state, player) =>
-        if (player.user.id != state.defender.user.id)
-          throw new GameException("You are not defending and cannot take")
-        val allCardsBeaten = state.round.forall(_.defence.isDefined)
-        if (allCardsBeaten)
-          throw new GameException("You cannot take cards if all cards in round are beaten")
+      withGameAndMe(auth, gameId) { (state, me) =>
+        GameCheckUtils.iCanTake(me, state)
         val updatedState = gameRepo.update(GameState(
           state.id,
           state.seed,
@@ -80,44 +77,37 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   def sayBeat(auth: Auth, gameId: String): GameState =
     lock synchronized {
-      withGameAndPlayer(auth, gameId) { (state, player) =>
-        if (player.user.id == state.defender.user.id)
-          throw new GameException("You are defending and cannot say beat")
-        if (player.done.isDefined)
-          throw new GameException("You are done and cannot say beat")
-        if (state.round.isEmpty)
-          throw new GameException("No cards in round. You cannot say beat")
-        if (player.saidBeat)
-          throw new GameException("You already said beat")
-        val hasAllSayBeat = state.players
-          .filterNot(_ == player)
+      withGameAndMe(auth, gameId) { (game, me) =>
+        GameCheckUtils.iCanSayBeat(me, game)
+        val hasAllSayBeat = game.players
+          .filterNot(_ == me)
           .filterNot(_.hand.isEmpty)
-          .filterNot(_.user.id == state.defender.user.id)
+          .filterNot(_.user.id == game.defender.user.id)
           .forall(_.saidBeat)
         if (hasAllSayBeat) {
-          val cardsInRound = state.round.flatMap { pair =>
+          val cardsInRound = game.round.flatMap { pair =>
             if (pair.defence.isDefined)
               pair.attack :: pair.defence.get :: Nil
             else
               pair.attack :: Nil
           }
-          if (state.isTaking) {
-            val playersTakenRound = state.players.map { p =>
-              if (p == state.defender)
+          if (game.isTaking) {
+            val playersTakenRound = game.players.map { p =>
+              if (p == game.defender)
                 Player(p.user, p.hand ::: cardsInRound, p.saidBeat, p.done)
               else
                 p
             }
-            val (updatedPlayers, updatedDeck) = dealCards(playersTakenRound, state.deck)
-            val skippingAttackPlayer = findNextPlayerWithCards(state.attacker, updatedPlayers)
+            val (updatedPlayers, updatedDeck) = dealCards(playersTakenRound, game.deck)
+            val skippingAttackPlayer = findNextPlayerWithCards(game.attacker, updatedPlayers)
             val newAttacker = findNextPlayerWithCards(skippingAttackPlayer, updatedPlayers)
             val newDefender = findNextPlayerWithCards(newAttacker, updatedPlayers)
             val updatedState = gameRepo.update(GameState(
-              state.id,
-              state.seed,
-              state.nonce + 1,
+              game.id,
+              game.seed,
+              game.nonce + 1,
               updatedDeck,
-              state.discardPileSize,
+              game.discardPileSize,
               updatedPlayers,
               Nil,
               newAttacker,
@@ -127,15 +117,15 @@ class GameService(eventPublisher: ApplicationEventPublisher,
             eventPublisher.publishEvent(new GameEvent(Constants.GAME_TAKEN, updatedState))
             updatedState
           } else {
-            val (updatedPlayers, updatedDeck) = dealCards(state.players, state.deck)
-            val newAttacker = findNextPlayerWithCards(state.attacker, updatedPlayers)
+            val (updatedPlayers, updatedDeck) = dealCards(game.players, game.deck)
+            val newAttacker = findNextPlayerWithCards(game.attacker, updatedPlayers)
             val newDefender = findNextPlayerWithCards(newAttacker, updatedPlayers)
             val updatedState = gameRepo.update(GameState(
-              state.id,
-              state.seed,
-              state.nonce + 1,
+              game.id,
+              game.seed,
+              game.nonce + 1,
               updatedDeck,
-              state.discardPileSize + cardsInRound.size,
+              game.discardPileSize + cardsInRound.size,
               updatedPlayers,
               Nil,
               newAttacker,
@@ -146,24 +136,24 @@ class GameService(eventPublisher: ApplicationEventPublisher,
             updatedState
           }
         } else {
-          val updatedPlayers = state.players.map { p =>
-            if (p == player)
+          val updatedPlayers = game.players.map { p =>
+            if (p == me)
               Player(p.user, p.hand, saidBeat = true, p.done)
             else
               p
           }
-          val updatedAttacker = updatedPlayers.find(_.user == state.attacker.user).get
+          val updatedAttacker = updatedPlayers.find(_.user == game.attacker.user).get
           val updatedState = gameRepo.update(GameState(
-            state.id,
-            state.seed,
-            state.nonce + 1,
-            state.deck,
-            state.discardPileSize,
+            game.id,
+            game.seed,
+            game.nonce + 1,
+            game.deck,
+            game.discardPileSize,
             updatedPlayers,
-            state.round,
+            game.round,
             updatedAttacker,
-            state.defender,
-            state.isTaking
+            game.defender,
+            game.isTaking
           ))
           eventPublisher.publishEvent(new GameEvent(Constants.GAME_BEAT, updatedState))
           updatedState
@@ -173,44 +163,33 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   def defend(auth: Auth, gameId: String, attackCard: Card, defenceCard: Card): GameState =
     lock synchronized {
-      withGameAndPlayer(auth, gameId) { (state, player) =>
-        if (auth.user.id != state.defender.user.id)
-          throw new GameException("You are not defending")
-        if (state.isTaking)
-          throw new GameException("You are taking and cannot defend")
-        if (!player.hand.contains(defenceCard))
-          throw new GameException("You don't have this card")
-        val roundPair = state.round.find(_.attack == attackCard)
-          .getOrElse(throw new GameException("Round has not such card"))
-        if (roundPair.defence.isDefined)
-          throw new GameException("Card already beaten")
-        if (!Card.canBeat(attackCard, defenceCard, state.deck.trumpSuit))
-          throw new GameException("You card is weaker than attacking card")
-        val round = state.round.map { pair =>
-          if (pair == roundPair)
+      withGameAndMe(auth, gameId) { (game, me) =>
+        GameCheckUtils.iCanDefend(me, game, attackCard, defenceCard)
+        val round = game.round.map { pair =>
+          if (pair.attack == attackCard)
             RoundPair(attackCard, Some(defenceCard))
           else
             pair
         }
-        val defender = state.defender
+        val defender = game.defender
         val updatedDefender = Player(
           defender.user,
           defender.hand.filterNot(_ == defenceCard),
           saidBeat = false,
           done = None
         )
-        val updatedPlayers = state.players.map { p =>
+        val updatedPlayers = game.players.map { p =>
           if (p.user == defender.user) updatedDefender else p
         }
         val updatedState = gameRepo.update(GameState(
-          state.id,
-          state.seed,
-          state.nonce + 1,
-          state.deck,
-          state.discardPileSize,
+          game.id,
+          game.seed,
+          game.nonce + 1,
+          game.deck,
+          game.discardPileSize,
           updatedPlayers,
           round,
-          state.attacker,
+          game.attacker,
           updatedDefender,
           isTaking = false
         ))
@@ -221,61 +200,35 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   def attack(auth: Auth, gameId: String, card: Card): GameState =
     lock synchronized {
-      withGameAndPlayer(auth, gameId) { (state, player) =>
-        if (auth.user.id == state.defender.user.id)
-          throw new GameException("You cannot attack. You are defending")
-        if (!player.hand.contains(card))
-          throw new GameException("You don't have this card")
-        if (player.saidBeat)
-          throw new GameException("You marked beat")
-        if (state.round.isEmpty && player.user.id != state.attacker.user.id)
-          throw new GameException("You are tossing. Wait for first move of attacker")
-        if (state.round.nonEmpty && !getRoundRanks(state.round).contains(card.rank))
-          throw new GameException("No such card rank in round")
-        if (state.discardPileSize == 0 && state.round.size >= 5)
-          throw new GameException("Round already have 5 cards (first round)")
-        if (state.round.size >= 6)
-          throw new GameException("Round already have 6 cards")
-        val unbeatenCount = state.round.count(_.defence.isEmpty) + 1
-        if (unbeatenCount > state.defender.hand.size)
-          throw new GameException("Defending player doesn't have enough cards to beat it")
-        val round = state.round :+ RoundPair(card, None)
+      withGameAndMe(auth, gameId) { (game, me) =>
+        GameCheckUtils.iCanAttack(me, game, card)
+        val round = game.round :+ RoundPair(card, None)
         val updatedPlayer = Player(
-          player.user,
-          player.hand.filterNot(_ == card),
+          me.user,
+          me.hand.filterNot(_ == card),
           saidBeat = false,
           done = None
         )
-        val updatedPlayers = state.players.map { p =>
-          if (p.user == player.user) updatedPlayer else p
+        val updatedPlayers = game.players.map { p =>
+          if (p.user == me.user) updatedPlayer else p
         }
-        val updatedAttacker = updatedPlayers.find(_.user == state.attacker.user).get
+        val updatedAttacker = updatedPlayers.find(_.user == game.attacker.user).get
         val updatedState = gameRepo.update(GameState(
-          state.id,
-          state.seed,
-          state.nonce + 1,
-          state.deck,
-          state.discardPileSize,
+          game.id,
+          game.seed,
+          game.nonce + 1,
+          game.deck,
+          game.discardPileSize,
           updatedPlayers,
           round,
           updatedAttacker,
-          state.defender,
-          state.isTaking
+          game.defender,
+          game.isTaking
         ))
         eventPublisher.publishEvent(new GameEvent(Constants.GAME_ATTACK, updatedState))
         updatedState
       }
     }
-
-  private def getRoundRanks(round: List[RoundPair]): Set[Rank] = {
-    round.flatMap { pair =>
-      val cards = pair.attack :: Nil
-      if (pair.defence.isDefined)
-        pair.defence.get :: cards
-      else
-        cards
-    }.map(_.rank).toSet
-  }
 
   def startGame(auth: Auth, userIds: List[String]): GameState = {
     if (userIds.size < 2 || userIds.size > 6) {
