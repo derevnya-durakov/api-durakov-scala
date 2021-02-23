@@ -5,6 +5,8 @@ import scala.util.Random
 class CardDeck private(cards: List[Card], val trumpSuit: Suit) {
   def deckSize: Int = cards.size
 
+  def isEmpty: Boolean = cards.isEmpty
+
   private def this(cards: List[Card]) =
     this(cards, cards.last.suit)
 

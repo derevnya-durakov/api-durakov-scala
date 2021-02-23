@@ -11,4 +11,5 @@ case class GameState(id: UUID,
                      round: List[RoundPair],
                      attacker: Player,
                      defender: Player,
-                     isTaking: Boolean) extends Identifiable
+                     isTaking: Boolean,
+                     durak: Option[Player]) extends Identifiable

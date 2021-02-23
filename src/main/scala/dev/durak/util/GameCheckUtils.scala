@@ -68,12 +68,18 @@ object GameCheckUtils {
     if (game.round.nonEmpty && !getRoundRanks(game.round).contains(card.rank))
       throw new GameException("No such card rank in round")
 
+  private def gameDidNotEnd(game: GameState): Unit =
+    if (game.durak.isDefined)
+      throw new GameException("Game already ended")
+
   def iCanTake(me: Player, game: GameState): Unit = {
+    gameDidNotEnd(game)
     iAmDefender(me, game)
     roundHasAnyUnbeatenCard(game)
   }
 
   def iCanSayBeat(me: Player, game: GameState): Unit = {
+    gameDidNotEnd(game)
     iAmNotDefender(me, game)
     iAmNotDone(me)
     roundHasAnyCard(game)
@@ -81,6 +87,7 @@ object GameCheckUtils {
   }
 
   def iCanDefend(me: Player, game: GameState, attackCard: Card, defenceCard: Card): Unit = {
+    gameDidNotEnd(game)
     iAmDefender(me, game)
     defenderIsNotTaking(game)
     iHaveCard(me, defenceCard)
@@ -89,6 +96,7 @@ object GameCheckUtils {
   }
 
   def iCanAttack(me: Player, game: GameState, attackCard: Card): Unit = {
+    gameDidNotEnd(game)
     iAmNotDefender(me, game)
     iHaveCard(me, attackCard)
     iDidNotSayBeat(me)

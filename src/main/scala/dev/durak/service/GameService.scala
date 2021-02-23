@@ -76,7 +76,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         game.round,
         game.attacker,
         game.defender,
-        isTaking = true
+        isTaking = true,
+        game.durak
       )
     )
 
@@ -129,7 +130,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
           Nil,
           newAttacker,
           newDefender,
-          isTaking = false
+          isTaking = false,
+          game.durak
         )
       )
       eventPublisher.publishEvent(new GameEvent(Constants.GAME_TAKEN, updatedState))
@@ -149,7 +151,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
           Nil,
           newAttacker,
           newDefender,
-          isTaking = false
+          isTaking = false,
+          game.durak
         )
       )
       eventPublisher.publishEvent(new GameEvent(Constants.GAME_BEAT, updatedState))
@@ -176,7 +179,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         game.round,
         updatedAttacker,
         game.defender,
-        game.isTaking
+        game.isTaking,
+        game.durak
       )
     )
     eventPublisher.publishEvent(new GameEvent(Constants.GAME_BEAT, updatedState))
@@ -223,7 +227,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         round,
         game.attacker,
         updatedDefender,
-        isTaking = false
+        isTaking = false,
+        game.durak
       )
     )
   }
@@ -232,9 +237,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     lock synchronized {
       withGameAndMe(auth, gameId) { (game, me) =>
         GameCheckUtils.iCanAttack(me, game, card)
-        val updatedState = internalAttackAction(me, card, game)
-        eventPublisher.publishEvent(new GameEvent(Constants.GAME_ATTACK, updatedState))
-        updatedState
+        internalAttackAction(me, card, game)
       }
     }
 
@@ -249,8 +252,16 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     val updatedPlayers = game.players.map { p =>
       if (p.user == me.user) updatedMe else p
     }
+    val allAttackersHaveNoCards = updatedPlayers
+      .filterNot(GameCheckUtils.playersEqual(_, game.defender))
+      .forall(_.hand.isEmpty)
     val updatedAttacker = updatedPlayers.find(_.user == game.attacker.user).get
-    gameRepo.update(
+    val (durak, event) = if (allAttackersHaveNoCards && game.deck.isEmpty) {
+      (Some(game.defender), Constants.GAME_END)
+    } else {
+      (None, Constants.GAME_ATTACK)
+    }
+    val updatedState = gameRepo.update(
       GameState(
         game.id,
         game.seed,
@@ -261,9 +272,12 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         round,
         updatedAttacker,
         game.defender,
-        game.isTaking
+        game.isTaking,
+        durak
       )
     )
+    eventPublisher.publishEvent(new GameEvent(event, updatedState))
+    updatedState
   }
 
   def startGame(auth: Auth, userIds: List[String]): GameState = {
@@ -288,7 +302,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       round = Nil,
       attacker,
       defender,
-      isTaking = false
+      isTaking = false,
+      durak = None
     )
     eventPublisher.publishEvent(new GameEvent(Constants.GAME_CREATED, gameState))
     // for testing
@@ -367,8 +382,6 @@ object GameService {
   def toExternal(state: GameState, user: User): ExternalGameState = {
     val hand = state.players.find(_.user == user).map(_.hand)
       .getOrElse(throw new GameException("User is not player of the game")).asJava
-    val players = state.players.map(toExternal).asJava
-    val round = state.round.map(toExternal).asJava
     ExternalGameState(
       state.id.toString,
       state.nonce,
@@ -377,12 +390,12 @@ object GameService {
       state.deck.deckSize,
       state.discardPileSize,
       hand,
-      players,
-      round,
+      state.players.map(toExternal).asJava,
+      state.round.map(toExternal).asJava,
       toExternal(state.attacker),
       toExternal(state.defender),
-      state.defender.user.id.toString,
-      state.isTaking
+      state.isTaking,
+      state.durak.map(toExternal).toJava
     )
   }
 
