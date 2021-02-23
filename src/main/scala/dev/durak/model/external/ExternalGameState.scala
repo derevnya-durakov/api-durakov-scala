@@ -15,5 +15,5 @@ case class ExternalGameState(id: String,
                              round: java.util.List[ExternalRoundPair],
                              attacker: ExternalPlayer,
                              defender: ExternalPlayer,
-                             defendingId: String /* todo: remove, deprecated field */ ,
-                             isTaking: Boolean)
+                             isTaking: Boolean,
+                             durak: Optional[ExternalPlayer])

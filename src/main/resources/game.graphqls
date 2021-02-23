@@ -44,9 +44,8 @@ type GameState {
     round: [RoundPair!]!
     attacker: Player!
     defender: Player!
-    # deprecated
-    defendingId: String!
     isTaking: Boolean!
+    durak: Player
 }
 
 type Player {
