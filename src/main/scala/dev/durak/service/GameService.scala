@@ -54,6 +54,14 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     }
   }
 
+  def transfer(auth: Auth, gameId: String, card: Card): GameState =
+    lock synchronized {
+      withGameAndMe(auth, gameId) { (game, me) =>
+        // todo check
+
+      }
+    }
+
   def take(auth: Auth, gameId: String): GameState =
     lock synchronized {
       withGameAndMe(auth, gameId) { (game, me) =>

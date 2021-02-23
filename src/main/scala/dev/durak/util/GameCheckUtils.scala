@@ -17,17 +17,21 @@ object GameCheckUtils {
     }.map(_.rank).toSet
   }
 
-  private def iAmDefender(me: Player, state: GameState): Unit =
-    if (!playersEqual(me, state.defender))
+  private def iAmDefender(me: Player, game: GameState): Unit =
+    if (!playersEqual(me, game.defender))
       throw new GameException("You are not defending and cannot do this")
 
-  private def iAmNotDefender(me: Player, state: GameState): Unit =
-    if (playersEqual(me, state.defender))
+  private def iAmNotDefender(me: Player, game: GameState): Unit =
+    if (playersEqual(me, game.defender))
       throw new GameException("You are defending and cannot do this")
 
-  private def roundHasAnyUnbeatenCard(state: GameState): Unit =
-    if (state.round.forall(_.defence.isDefined))
+  private def roundHasAnyUnbeatenCard(game: GameState): Unit =
+    if (game.round.forall(_.defence.isDefined))
       throw new GameException("You cannot do this if round has no any unbeaten card")
+
+  private def allCardsInRoundUnbeaten(game: GameState): Unit =
+    if (game.round.exists(_.defence.isDefined))
+      throw new GameException("You cannot do this when round has beaten card")
 
   private def iAmNotDone(me: Player): Unit =
     if (me.done.isDefined)
@@ -102,5 +106,13 @@ object GameCheckUtils {
     val unbeatenCount = game.round.count(_.defence.isEmpty) + 1
     if (unbeatenCount > game.defender.hand.size)
       throw new GameException("Defending player doesn't have enough cards to beat it")
+  }
+
+  def iCanTransfer(me: Player, game: GameState, card: Card): Unit = {
+    iAmDefender(me, game)
+    iHaveCard(me, card)
+    roundHasAnyCard(game)
+    allCardsInRoundUnbeaten(game)
+    defenderIsNotTaking(game)
   }
 }
