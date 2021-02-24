@@ -91,6 +91,7 @@ type Mutation {
     sayBeat(gameId: ID!): GameState!
     take(gameId: ID!): GameState!
     testRestartGame: Boolean!
+    nextGame(gameId: ID!): GameState!
 }
 
 type Subscription {

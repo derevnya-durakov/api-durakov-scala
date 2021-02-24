@@ -68,6 +68,10 @@ object GameCheckUtils {
     if (game.round.nonEmpty && !getRoundRanks(game.round).contains(card.rank))
       throw new GameException("No such card rank in round")
 
+  private def gameDidEnd(game: GameState): Unit =
+    if (game.durak.isEmpty)
+      throw new GameException("Game did not ended yet")
+
   private def gameDidNotEnd(game: GameState): Unit =
     if (game.durak.isDefined)
       throw new GameException("Game already ended")
@@ -111,4 +115,7 @@ object GameCheckUtils {
     if (unbeatenCount > game.defender.hand.size)
       throw new GameException("Defending player doesn't have enough cards to beat it")
   }
+
+  def iCanStartNextGame(game: GameState): Unit =
+    gameDidEnd(game)
 }

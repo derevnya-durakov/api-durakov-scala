@@ -49,4 +49,9 @@ class MutationResolver(gameService: GameService,
     authService.authenticated(env) { auth =>
       GameService.toExternal(gameService.take(auth, gameId), auth.user)
     }
+
+  def nextGame(gameId: String, env: DataFetchingEnvironment): ExternalGameState =
+    authService.authenticated(env) { auth =>
+      GameService.toExternal(gameService.nextGame(auth, gameId), auth.user)
+    }
 }

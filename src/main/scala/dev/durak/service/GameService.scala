@@ -54,6 +54,35 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     }
   }
 
+  def nextGame(auth: Auth, gameId: String): GameState =
+    lock synchronized {
+      withGameAndMe(auth, gameId) { (game, me) =>
+        GameCheckUtils.iCanStartNextGame(game)
+        val playersWithEmptyHands = game.players
+          .map(p => Player(p.user, Nil, saidBeat = false, done = None))
+        val (players, deck) = dealCards(playersWithEmptyHands, CardDeck(game.seed))
+        val attacker = players.find(GameCheckUtils.playersEqual(_, game.attacker)).get
+        val defender = players.find(GameCheckUtils.playersEqual(_, game.defender)).get
+        val updatedState = gameRepo.update(
+          GameState(
+            game.id,
+            game.seed,
+            game.nonce + 1,
+            deck,
+            discardPileSize = 0,
+            players,
+            round = Nil,
+            attacker,
+            defender,
+            isTaking = false,
+            durak = None
+          )
+        )
+        eventPublisher.publishEvent(new GameEvent(Constants.GAME_NEXT, updatedState))
+        updatedState
+      }
+    }
+
   def take(auth: Auth, gameId: String): GameState =
     lock synchronized {
       withGameAndMe(auth, gameId) { (game, me) =>

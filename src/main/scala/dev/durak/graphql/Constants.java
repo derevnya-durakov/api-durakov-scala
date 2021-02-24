@@ -10,4 +10,5 @@ public class Constants {
     public static final String GAME_TAKEN = "GAME_TAKEN";
     public static final String GAME_BEATEN = "GAME_BEATEN";
     public static final String GAME_END = "GAME_END";
+    public static final String GAME_NEXT = "GAME_NEXT";
 }

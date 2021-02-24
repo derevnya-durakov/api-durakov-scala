@@ -3,7 +3,7 @@ package dev.durak.model
 import java.util.UUID
 
 case class GameState(id: UUID,
-                     seed: Long,
+                     seed: Int,
                      nonce: Long,
                      deck: CardDeck,
                      discardPileSize: Int,
