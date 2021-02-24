@@ -200,9 +200,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     lock synchronized {
       withGameAndMe(auth, gameId) { (game, me) =>
         GameCheckUtils.iCanDefend(me, game, attackCard, defenceCard)
-        val updatedState = internalDefendAction(attackCard, defenceCard, game)
-        eventPublisher.publishEvent(new GameEvent(Constants.GAME_DEFEND, updatedState))
-        updatedState
+        internalDefendAction(attackCard, defenceCard, game)
       }
     }
 
@@ -237,7 +235,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         Player(p.user, p.hand, saidBeat = rankAlreadyWasInRound, p.done)
       }
     }
-    gameRepo.update(
+    var updatedState = gameRepo.update(
       GameState(
         game.id,
         game.seed,
@@ -252,6 +250,14 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         game.durak
       )
     )
+    eventPublisher.publishEvent(new GameEvent(Constants.GAME_DEFEND, updatedState))
+    if (myHand.isEmpty) {
+      updatedPlayers
+        .filterNot(GameCheckUtils.playersEqual(_, game.defender))
+        .filterNot(_.saidBeat)
+        .foreach(player => updatedState = internalSayBeatAction(player, updatedState))
+    }
+    updatedState
   }
 
   def attack(auth: Auth, gameId: String, card: Card): GameState =
