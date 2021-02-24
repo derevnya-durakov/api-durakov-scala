@@ -206,12 +206,19 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       else
         pair
     }
+    // todo make some common logic for defend and attack
     val defender = game.defender
+    val myHand = defender.hand.filterNot(_ == defenceCard)
+    val done = if (myHand.isEmpty && game.deck.isEmpty) {
+      Some(game.players.count(_.done.isDefined) + 1)
+    } else {
+      None
+    }
     val updatedDefender = Player(
       defender.user,
-      defender.hand.filterNot(_ == defenceCard),
+      myHand,
       saidBeat = false,
-      done = None
+      done
     )
     val updatedPlayers = game.players.map { p =>
       if (p.user == defender.user) updatedDefender else p
@@ -243,20 +250,26 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   private def internalAttackAction(me: Player, card: Card, game: GameState): GameState = {
     val round = game.round :+ RoundPair(card, None)
+    val myHand = me.hand.filterNot(_ == card);
+    val done = if (myHand.isEmpty && game.deck.isEmpty) {
+      Some(game.players.count(_.done.isDefined) + 1)
+    } else {
+      None
+    }
     val updatedMe = Player(
       me.user,
-      me.hand.filterNot(_ == card),
+      myHand,
       saidBeat = false,
-      done = None
+      done
     )
     val updatedPlayers = game.players.map { p =>
       if (p.user == me.user) updatedMe else p
     }
-    val allAttackersHaveNoCards = updatedPlayers
+    val allAttackersDone = updatedPlayers
       .filterNot(GameCheckUtils.playersEqual(_, game.defender))
-      .forall(_.hand.isEmpty)
+      .forall(_.done.isDefined)
     val updatedAttacker = updatedPlayers.find(_.user == game.attacker.user).get
-    val (durak, event) = if (allAttackersHaveNoCards && game.deck.isEmpty) {
+    val (durak, event) = if (allAttackersDone) {
       (Some(game.defender), Constants.GAME_END)
     } else {
       (None, Constants.GAME_ATTACK)
@@ -350,20 +363,11 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   private def dealCards(sourcePlayers: List[Player],
                         sourceDeck: CardDeck): (List[Player], CardDeck) = {
-    var doneCounter = sourcePlayers.count(_.done.isDefined)
     var deck = sourceDeck
     val players = for (player <- sourcePlayers) yield {
       val (updatedHand, updatedDeck) = deck.fillHand(player.hand, targetHandSize = 6)
       deck = updatedDeck
-      val done = if (player.done.isDefined) {
-        player.done
-      } else if (updatedHand.isEmpty) {
-        doneCounter = doneCounter + 1
-        Some(doneCounter)
-      } else {
-        None
-      }
-      Player(player.user, updatedHand, saidBeat = false, done)
+      Player(player.user, updatedHand, saidBeat = false, player.done)
     }
     (players, deck)
   }
