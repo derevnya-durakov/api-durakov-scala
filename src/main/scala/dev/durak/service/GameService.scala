@@ -64,7 +64,15 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       }
     }
 
-  private def internalTakeAction(game: GameState): GameState =
+  private def internalTakeAction(game: GameState): GameState = {
+    val updatedPlayers = game.players.map { p =>
+      if (p.hand.isEmpty || p.done.isDefined) {
+        Player(p.user, p.hand, saidBeat = true, p.done)
+      } else {
+        p
+      }
+    }
+    val updatedAttacker = updatedPlayers.find(GameCheckUtils.playersEqual(_, game.attacker)).get
     gameRepo.update(
       GameState(
         game.id,
@@ -72,14 +80,15 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         game.nonce + 1,
         game.deck,
         game.discardPileSize,
-        game.players,
+        updatedPlayers,
         game.round,
-        game.attacker,
+        updatedAttacker,
         game.defender,
         isTaking = true,
         game.durak
       )
     )
+  }
 
   def sayBeat(auth: Auth, gameId: String): GameState =
     lock synchronized {
