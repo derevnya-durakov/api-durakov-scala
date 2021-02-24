@@ -220,8 +220,13 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       saidBeat = false,
       done
     )
+    val rankAlreadyWasInRound = GameCheckUtils.getRoundRanks(game.round).contains(defenceCard.rank)
     val updatedPlayers = game.players.map { p =>
-      if (p.user == defender.user) updatedDefender else p
+      if (p.user == defender.user) {
+        updatedDefender
+      } else {
+        Player(p.user, p.hand, saidBeat = rankAlreadyWasInRound, p.done)
+      }
     }
     gameRepo.update(
       GameState(

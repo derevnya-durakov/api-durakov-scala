@@ -7,7 +7,7 @@ object GameCheckUtils {
   def playersEqual(one: Player, another: Player): Boolean =
     one.user.id == another.user.id
 
-  private def getRoundRanks(round: List[RoundPair]): Set[Rank] = {
+  def getRoundRanks(round: List[RoundPair]): Set[Rank] = {
     round.flatMap { pair =>
       val cards = pair.attack :: Nil
       if (pair.defence.isDefined)
