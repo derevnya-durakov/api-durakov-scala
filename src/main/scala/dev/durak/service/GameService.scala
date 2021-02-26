@@ -261,7 +261,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       if (p.user == defender.user) {
         updatedDefender
       } else {
-        Player(p.user, p.hand, saidBeat = rankAlreadyWasInRound, p.done)
+        val saidBeat = if (p.saidBeat) rankAlreadyWasInRound else false
+        Player(p.user, p.hand, saidBeat, p.done)
       }
     }
     var updatedState = gameRepo.update(
