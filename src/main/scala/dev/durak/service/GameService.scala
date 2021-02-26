@@ -62,8 +62,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         val playersWithEmptyHands = game.players
           .map(p => Player(p.user, Nil, saidBeat = false, done = None))
         val (players, deck) = dealCards(playersWithEmptyHands, CardDeck(game.seed), game)
-        val attacker = players.find(GameCheckUtils.playersEqual(_, game.attacker)).get
-        val defender = players.find(GameCheckUtils.playersEqual(_, game.defender)).get
+        val attacker = findActualPlayer(game.attacker, players)
+        val defender = findActualPlayer(game.defender, players)
         val updatedState = gameRepo.update(
           GameState(
             game.id,
@@ -102,7 +102,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         p
       }
     }
-    val updatedAttacker = updatedPlayers.find(GameCheckUtils.playersEqual(_, game.attacker)).get
+    val updatedAttacker = findActualPlayer(game.attacker, updatedPlayers)
     gameRepo.update(
       GameState(
         game.id,
@@ -206,7 +206,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       else
         p
     }
-    val updatedAttacker = updatedPlayers.find(_.user == game.attacker.user).get
+    val updatedAttacker = findActualPlayer(game.attacker, updatedPlayers)
     val updatedState = gameRepo.update(
       GameState(
         game.id,
@@ -319,7 +319,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     val allAttackersDone = updatedPlayers
       .filterNot(GameCheckUtils.playersEqual(_, game.defender))
       .forall(_.done.isDefined)
-    val updatedAttacker = updatedPlayers.find(_.user == game.attacker.user).get
+    val updatedAttacker = findActualPlayer(game.attacker, updatedPlayers)
     val (durak, event) = if (allAttackersDone) {
       (Some(game.defender), Constants.GAME_END)
     } else {
@@ -379,11 +379,9 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   @tailrec
   private def findNextPlayerWithCards(currentPlayer: Player, players: List[Player]): Player = {
-    if (!players.exists(_.user.id == currentPlayer.user.id))
-      throw new GameException("Try to find next player in list of players not containing current")
     if (players.map(_.hand).forall(_.isEmpty))
       throw new GameException("Try to get next player when all players have empty hands")
-    val realCurrentPlayer = players.find(_.user.id == currentPlayer.user.id).get
+    val realCurrentPlayer = findActualPlayer(currentPlayer, players)
     val nextPlayer = players(findNextCircleIndex(realCurrentPlayer, players))
     if (nextPlayer.hand.nonEmpty)
       nextPlayer
@@ -428,8 +426,8 @@ class GameService(eventPublisher: ApplicationEventPublisher,
                         game: GameState): (List[Player], CardDeck) = {
     val playersMap = mutable.Map(sourcePlayers.map(p => (p.user, p)): _*)
     var deck = sourceDeck
-    val attacker = sourcePlayers.find(GameCheckUtils.playersEqual(_, game.attacker)).get
-    val defender = sourcePlayers.find(GameCheckUtils.playersEqual(_, game.defender)).get
+    val attacker = findActualPlayer(game.attacker, sourcePlayers)
+    val defender = findActualPlayer(game.attacker, sourcePlayers)
     val restPlayers = sourcePlayers
       .filterNot(GameCheckUtils.playersEqual(_, game.attacker))
       .filterNot(GameCheckUtils.playersEqual(_, game.defender))
@@ -442,6 +440,11 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     sourcePlayers.map(_.user).foreach(user => players = players :+ playersMap(user))
     (players, deck)
   }
+
+  private def findActualPlayer(nonActualPlayer: Player, actualPlayers: List[Player]): Player =
+    actualPlayers
+      .find(GameCheckUtils.playersEqual(_, nonActualPlayer))
+      .getOrElse(throw new GameException("Not found actual player in list"))
 
   private def loadUsers(userIds: List[String]): List[User] =
     userIds
