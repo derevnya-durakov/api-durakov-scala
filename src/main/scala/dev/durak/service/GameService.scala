@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service
 
 import java.util.UUID
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 
@@ -56,11 +57,11 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   def nextGame(auth: Auth, gameId: String): GameState =
     lock synchronized {
-      withGameAndMe(auth, gameId) { (game, me) =>
+      withGameAndMe(auth, gameId) { (game, _) =>
         GameCheckUtils.iCanStartNextGame(game)
         val playersWithEmptyHands = game.players
           .map(p => Player(p.user, Nil, saidBeat = false, done = None))
-        val (players, deck) = dealCards(playersWithEmptyHands, CardDeck(game.seed))
+        val (players, deck) = dealCards(playersWithEmptyHands, CardDeck(game.seed), game)
         val attacker = players.find(GameCheckUtils.playersEqual(_, game.attacker)).get
         val defender = players.find(GameCheckUtils.playersEqual(_, game.defender)).get
         val updatedState = gameRepo.update(
@@ -153,7 +154,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         else
           p
       }
-      val (updatedPlayers, updatedDeck) = dealCards(playersTakenRound, game.deck)
+      val (updatedPlayers, updatedDeck) = dealCards(playersTakenRound, game.deck, game)
       val skippingAttackPlayer = findNextPlayerWithCards(game.attacker, updatedPlayers)
       val newAttacker = findNextPlayerWithCards(skippingAttackPlayer, updatedPlayers)
       val newDefender = findNextPlayerWithCards(newAttacker, updatedPlayers)
@@ -175,7 +176,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       eventPublisher.publishEvent(new GameEvent(Constants.GAME_TAKEN, updatedState))
       updatedState
     } else {
-      val (updatedPlayers, updatedDeck) = dealCards(game.players, game.deck)
+      val (updatedPlayers, updatedDeck) = dealCards(game.players, game.deck, game)
       val newAttacker = findNextPlayerWithCards(game.attacker, updatedPlayers)
       val newDefender = findNextPlayerWithCards(newAttacker, updatedPlayers)
       val updatedState = gameRepo.update(
@@ -352,7 +353,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     val playersWithEmptyHands = loadUsers(userIds)
       .map(Player(_, Nil, saidBeat = false, done = None))
     val sourceDeck = CardDeck(seed)
-    val (players, deck) = dealCards(playersWithEmptyHands, sourceDeck)
+    val (players, deck) = initialDealCards(playersWithEmptyHands, sourceDeck)
     val attacker = initialDecideWhoAttacker(players, deck.trumpSuit)
     val defender = findNextPlayerWithCards(attacker, players)
     val gameState = GameState(
@@ -411,14 +412,34 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       .flatMap(user => players.find(_.user == user))
       .getOrElse(players.head)
 
-  private def dealCards(sourcePlayers: List[Player],
-                        sourceDeck: CardDeck): (List[Player], CardDeck) = {
+  private def initialDealCards(sourcePlayers: List[Player],
+                               sourceDeck: CardDeck): (List[Player], CardDeck) = {
     var deck = sourceDeck
     val players = for (player <- sourcePlayers) yield {
       val (updatedHand, updatedDeck) = deck.fillHand(player.hand, targetHandSize = 6)
       deck = updatedDeck
       Player(player.user, updatedHand, saidBeat = false, player.done)
     }
+    (players, deck)
+  }
+
+  private def dealCards(sourcePlayers: List[Player],
+                        sourceDeck: CardDeck,
+                        game: GameState): (List[Player], CardDeck) = {
+    val playersMap = mutable.Map(sourcePlayers.map(p => (p.user, p)): _*)
+    var deck = sourceDeck
+    val attacker = sourcePlayers.find(GameCheckUtils.playersEqual(_, game.attacker)).get
+    val defender = sourcePlayers.find(GameCheckUtils.playersEqual(_, game.attacker)).get
+    val restPlayers = sourcePlayers
+      .filterNot(GameCheckUtils.playersEqual(_, game.attacker))
+      .filterNot(GameCheckUtils.playersEqual(_, game.defender))
+    ((attacker :: restPlayers) :+ defender) foreach { player =>
+      val (updatedHand, updatedDeck) = deck.fillHand(player.hand, targetHandSize = 6)
+      deck = updatedDeck
+      playersMap.put(player.user, Player(player.user, updatedHand, saidBeat = false, player.done))
+    }
+    var players: List[Player] = Nil
+    sourcePlayers.map(_.user).foreach(user => players = players :+ playersMap(user))
     (players, deck)
   }
 
