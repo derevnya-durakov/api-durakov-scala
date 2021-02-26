@@ -429,7 +429,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     val playersMap = mutable.Map(sourcePlayers.map(p => (p.user, p)): _*)
     var deck = sourceDeck
     val attacker = sourcePlayers.find(GameCheckUtils.playersEqual(_, game.attacker)).get
-    val defender = sourcePlayers.find(GameCheckUtils.playersEqual(_, game.attacker)).get
+    val defender = sourcePlayers.find(GameCheckUtils.playersEqual(_, game.defender)).get
     val restPlayers = sourcePlayers
       .filterNot(GameCheckUtils.playersEqual(_, game.attacker))
       .filterNot(GameCheckUtils.playersEqual(_, game.defender))
