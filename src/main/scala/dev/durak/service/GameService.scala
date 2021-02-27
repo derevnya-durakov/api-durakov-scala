@@ -62,8 +62,10 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         val playersWithEmptyHands = game.players
           .map(p => Player(p.user, Nil, saidBeat = false, done = None))
         val (players, deck) = dealCards(playersWithEmptyHands, CardDeck(game.seed), game)
-        val attacker = findActualPlayer(game.attacker, players)
-        val defender = findActualPlayer(game.defender, players)
+        val defender = findActualPlayer(game.durak.get, players)
+        val attacker = players
+          .find(p => GameCheckUtils.playersEqual(findNextPlayerWithCards(p, players), defender))
+          .get
         val updatedState = gameRepo.update(
           GameState(
             game.id,
@@ -266,7 +268,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         Player(p.user, p.hand, saidBeat, p.done)
       }
     }
-    var updatedState = gameRepo.update(
+    var updatedGame = gameRepo.update(
       GameState(
         game.id,
         game.seed,
@@ -281,14 +283,34 @@ class GameService(eventPublisher: ApplicationEventPublisher,
         game.durak
       )
     )
-    eventPublisher.publishEvent(new GameEvent(Constants.GAME_DEFEND, updatedState))
-    if (myHand.isEmpty) {
+    eventPublisher.publishEvent(new GameEvent(Constants.GAME_DEFEND, updatedGame))
+    val allAttackersDone = updatedPlayers
+      .filterNot(GameCheckUtils.playersEqual(_, game.attacker))
+      .forall(_.done.isDefined)
+    if (allAttackersDone) {
+      updatedGame = gameRepo.update(
+        GameState(
+          updatedGame.id,
+          updatedGame.seed,
+          updatedGame.nonce + 1,
+          updatedGame.deck,
+          updatedGame.discardPileSize,
+          updatedGame.players,
+          updatedGame.round,
+          updatedGame.attacker,
+          updatedGame.defender,
+          updatedGame.isTaking,
+          durak = Some(updatedGame.attacker)
+        )
+      )
+      eventPublisher.publishEvent(new GameEvent(Constants.GAME_END, updatedGame))
+    } else if (myHand.isEmpty) {
       updatedPlayers
         .filterNot(GameCheckUtils.playersEqual(_, game.defender))
         .filterNot(_.saidBeat)
-        .foreach(player => updatedState = internalSayBeatAction(player, updatedState))
+        .foreach(player => updatedGame = internalSayBeatAction(player, updatedGame))
     }
-    updatedState
+    updatedGame
   }
 
   def attack(auth: Auth, gameId: String, card: Card): GameState =
