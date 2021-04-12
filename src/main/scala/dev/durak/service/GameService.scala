@@ -60,23 +60,21 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       withGameAndMe(auth, gameId) { (game, _) =>
         GameCheckUtils.iCanStartNextGame(game)
         val playersWithEmptyHands = game.players
-          .map(p => Player(p.user, Nil, saidBeat = false, done = None))
+          .map(p => p.copy(hand = Nil, saidBeat = false, done = None))
         val (players, deck) = dealCards(playersWithEmptyHands, CardDeck(game.seed), game)
         val defender = findActualPlayer(game.durak.get, players)
         val attacker = players
           .find(p => GameCheckUtils.playersEqual(findNextPlayerWithCards(p, players), defender))
           .get
         val updatedState = gameRepo.update(
-          GameState(
-            game.id,
-            game.seed,
-            game.nonce + 1,
-            deck,
+          game.copy(
+            nonce = game.nonce + 1,
+            deck = deck,
             discardPileSize = 0,
-            players,
+            players = players,
             round = Nil,
-            attacker,
-            defender,
+            attacker = attacker,
+            defender = defender,
             isTaking = false,
             durak = None
           )
@@ -99,25 +97,18 @@ class GameService(eventPublisher: ApplicationEventPublisher,
   private def internalTakeAction(game: GameState): GameState = {
     val updatedPlayers = game.players.map { p =>
       if (p.hand.isEmpty || p.done.isDefined) {
-        Player(p.user, p.hand, saidBeat = true, p.done)
+        p.copy(saidBeat = true)
       } else {
         p
       }
     }
     val updatedAttacker = findActualPlayer(game.attacker, updatedPlayers)
     gameRepo.update(
-      GameState(
-        game.id,
-        game.seed,
-        game.nonce + 1,
-        game.deck,
-        game.discardPileSize,
-        updatedPlayers,
-        game.round,
-        updatedAttacker,
-        game.defender,
+      game.copy(
+        nonce = game.nonce + 1,
+        players = updatedPlayers,
+        attacker = updatedAttacker,
         isTaking = true,
-        game.durak
       )
     )
   }
@@ -151,28 +142,21 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     }
     if (game.isTaking) {
       val playersTakenRound = game.players.map { p =>
-        if (p == game.defender)
-          Player(p.user, p.hand ::: cardsInRound, p.saidBeat, p.done)
-        else
-          p
+        if (p == game.defender) p.copy(hand = p.hand ::: cardsInRound) else p
       }
       val (updatedPlayers, updatedDeck) = dealCards(playersTakenRound, game.deck, game)
       val skippingAttackPlayer = findNextPlayerWithCards(game.attacker, updatedPlayers)
       val newAttacker = findNextPlayerWithCards(skippingAttackPlayer, updatedPlayers)
       val newDefender = findNextPlayerWithCards(newAttacker, updatedPlayers)
       val updatedState = gameRepo.update(
-        GameState(
-          game.id,
-          game.seed,
-          game.nonce + 1,
-          updatedDeck,
-          game.discardPileSize,
-          updatedPlayers,
-          Nil,
-          newAttacker,
-          newDefender,
+        game.copy(
+          nonce = game.nonce + 1,
+          deck = updatedDeck,
+          players = updatedPlayers,
+          round = Nil,
+          attacker = newAttacker,
+          defender = newDefender,
           isTaking = false,
-          game.durak
         )
       )
       eventPublisher.publishEvent(new GameEvent(Constants.GAME_TAKEN, updatedState))
@@ -182,18 +166,15 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       val newAttacker = findNextPlayerWithCards(game.attacker, updatedPlayers)
       val newDefender = findNextPlayerWithCards(newAttacker, updatedPlayers)
       val updatedState = gameRepo.update(
-        GameState(
-          game.id,
-          game.seed,
-          game.nonce + 1,
-          updatedDeck,
-          game.discardPileSize + cardsInRound.size,
-          updatedPlayers,
-          Nil,
-          newAttacker,
-          newDefender,
+        game.copy(
+          nonce = game.nonce + 1,
+          deck = updatedDeck,
+          discardPileSize = game.discardPileSize + cardsInRound.size,
+          players = updatedPlayers,
+          round = Nil,
+          attacker = newAttacker,
+          defender = newDefender,
           isTaking = false,
-          game.durak
         )
       )
       eventPublisher.publishEvent(new GameEvent(Constants.GAME_BEAT, updatedState))
@@ -203,25 +184,14 @@ class GameService(eventPublisher: ApplicationEventPublisher,
 
   private def internalNotLastSayBeatAction(me: Player, game: GameState): GameState = {
     val updatedPlayers = game.players.map { p =>
-      if (p == me)
-        Player(p.user, p.hand, saidBeat = true, p.done)
-      else
-        p
+      if (p == me) p.copy(saidBeat = true) else p
     }
     val updatedAttacker = findActualPlayer(game.attacker, updatedPlayers)
     val updatedState = gameRepo.update(
-      GameState(
-        game.id,
-        game.seed,
-        game.nonce + 1,
-        game.deck,
-        game.discardPileSize,
-        updatedPlayers,
-        game.round,
-        updatedAttacker,
-        game.defender,
-        game.isTaking,
-        game.durak
+      game.copy(
+        nonce = game.nonce + 1,
+        players = updatedPlayers,
+        attacker = updatedAttacker,
       )
     )
     eventPublisher.publishEvent(new GameEvent(Constants.GAME_BEAT, updatedState))
@@ -253,34 +223,28 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     } else {
       None
     }
-    val updatedDefender = Player(
-      defender.user,
-      myHand,
+    val updatedDefender = defender.copy(
+      hand = myHand,
       saidBeat = false,
-      done
+      done = done
     )
     val rankAlreadyWasInRound = GameCheckUtils.getRoundRanks(game.round).contains(defenceCard.rank)
     val updatedPlayers = game.players.map { p =>
       if (p.user == defender.user) {
         updatedDefender
       } else {
-        val saidBeat = if (p.saidBeat) rankAlreadyWasInRound else false
-        Player(p.user, p.hand, saidBeat, p.done)
+        p.copy(
+          saidBeat = if (p.saidBeat) rankAlreadyWasInRound else false
+        )
       }
     }
     var updatedGame = gameRepo.update(
-      GameState(
-        game.id,
-        game.seed,
-        game.nonce + 1,
-        game.deck,
-        game.discardPileSize,
-        updatedPlayers,
-        round,
-        game.attacker,
-        updatedDefender,
-        isTaking = false,
-        game.durak
+      game.copy(
+        nonce = game.nonce + 1,
+        players = updatedPlayers,
+        round = round,
+        defender = updatedDefender,
+        isTaking = false
       )
     )
     eventPublisher.publishEvent(new GameEvent(Constants.GAME_DEFEND, updatedGame))
@@ -289,19 +253,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       .forall(_.done.isDefined)
     if (allAttackersDone) {
       updatedGame = gameRepo.update(
-        GameState(
-          updatedGame.id,
-          updatedGame.seed,
-          updatedGame.nonce + 1,
-          updatedGame.deck,
-          updatedGame.discardPileSize,
-          updatedGame.players,
-          updatedGame.round,
-          updatedGame.attacker,
-          updatedGame.defender,
-          updatedGame.isTaking,
-          durak = Some(updatedGame.attacker)
-        )
+        updatedGame.copy(durak = Some(updatedGame.attacker))
       )
       eventPublisher.publishEvent(new GameEvent(Constants.GAME_END, updatedGame))
     } else if (myHand.isEmpty) {
@@ -329,11 +281,10 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     } else {
       None
     }
-    val updatedMe = Player(
-      me.user,
-      myHand,
+    val updatedMe = me.copy(
+      hand = myHand,
       saidBeat = false,
-      done
+      done = done
     )
     val updatedPlayers = game.players.map { p =>
       if (p.user == me.user) updatedMe else p
@@ -348,18 +299,12 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       (None, Constants.GAME_ATTACK)
     }
     val updatedState = gameRepo.update(
-      GameState(
-        game.id,
-        game.seed,
-        game.nonce + 1,
-        game.deck,
-        game.discardPileSize,
-        updatedPlayers,
-        round,
-        updatedAttacker,
-        game.defender,
-        game.isTaking,
-        durak
+      game.copy(
+        nonce = game.nonce + 1,
+        players = updatedPlayers,
+        round = round,
+        attacker = updatedAttacker,
+        durak = durak
       )
     )
     eventPublisher.publishEvent(new GameEvent(event, updatedState))
@@ -379,17 +324,12 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     val attacker = initialDecideWhoAttacker(players, deck.trumpSuit)
     val defender = findNextPlayerWithCards(attacker, players)
     val gameState = GameState(
-      id,
-      seed,
-      nonce = 1,
-      deck,
-      discardPileSize = 0,
-      players,
-      round = Nil,
-      attacker,
-      defender,
-      isTaking = false,
-      durak = None
+      id = id,
+      seed = seed,
+      deck = deck,
+      players = players,
+      attacker = attacker,
+      defender = defender
     )
     eventPublisher.publishEvent(new GameEvent(Constants.GAME_CREATED, gameState))
     // for testing
@@ -438,7 +378,7 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     val players = for (player <- sourcePlayers) yield {
       val (updatedHand, updatedDeck) = deck.fillHand(player.hand, targetHandSize = 6)
       deck = updatedDeck
-      Player(player.user, updatedHand, saidBeat = false, player.done)
+      player.copy(hand = updatedHand, saidBeat = false)
     }
     (players, deck)
   }
@@ -454,9 +394,9 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       .filterNot(GameCheckUtils.playersEqual(_, game.attacker))
       .filterNot(GameCheckUtils.playersEqual(_, game.defender))
     ((attacker :: restPlayers) :+ defender) foreach { player =>
-      val (updatedHand, updatedDeck) = deck.fillHand(player.hand, targetHandSize = 6)
+      val (updatedHand, updatedDeck) = deck.fillHand(player.hand)
       deck = updatedDeck
-      playersMap.put(player.user, Player(player.user, updatedHand, saidBeat = false, player.done))
+      playersMap.put(player.user, player.copy(hand = updatedHand, saidBeat = false))
     }
     var players: List[Player] = Nil
     sourcePlayers.map(_.user).foreach(user => players = players :+ playersMap(user))

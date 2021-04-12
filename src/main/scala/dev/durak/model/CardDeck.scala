@@ -16,7 +16,7 @@ class CardDeck private(cards: List[Card], val trumpSuit: Suit) {
   def deal(count: Int): (List[Card], CardDeck) =
     (cards.take(count), new CardDeck(cards.drop(count), trumpSuit))
 
-  def fillHand(sourceHand: List[Card], targetHandSize: Int): (List[Card], CardDeck) = {
+  def fillHand(sourceHand: List[Card], targetHandSize: Int = 6): (List[Card], CardDeck) = {
     val (newHand, newDeck) = deal(targetHandSize - sourceHand.size)
     (sourceHand ::: newHand, newDeck)
   }
