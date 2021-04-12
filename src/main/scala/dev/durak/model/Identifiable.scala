@@ -1,7 +1,12 @@
 package dev.durak.model
 
+import org.springframework.data.annotation.Id
+
 import java.util.UUID
+import scala.beans.BeanProperty
 
 trait Identifiable {
-  def id: UUID
+  @Id
+  @BeanProperty
+  var id: UUID = _
 }

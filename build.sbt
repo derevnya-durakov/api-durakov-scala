@@ -11,6 +11,7 @@ libraryDependencies ++= {
   Seq(
     "io.reactivex.rxjava2" % "rxjava" % "2.2.20",
     "org.springframework.boot" % "spring-boot-starter-test" % springBootVersion,
+    "org.springframework.boot" % "spring-boot-starter-data-mongodb" % springBootVersion,
     "com.graphql-java-kickstart" % "graphql-spring-boot-starter" % graphqlVersion,
     "com.graphql-java-kickstart" % "playground-spring-boot-starter" % graphqlVersion,
 //    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.1"
