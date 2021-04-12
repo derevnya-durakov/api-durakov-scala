@@ -6,8 +6,10 @@ import io.reactivex.{BackpressureStrategy, Flowable, Observable}
 import org.springframework.stereotype.Component
 
 @Component
-class EventPublisher(userEventEmitter: UserEventEmitter,
-                     gameEventEmitter: GameEventEmitter) {
+class EventPublisher(
+  userEventEmitter: UserEventEmitter,
+  gameEventEmitter: GameEventEmitter
+) {
   private val userCreatedFlowable: Flowable[UserEvent] = {
     val userCreatedConnectableObservable = Observable
       .create(userEventEmitter)

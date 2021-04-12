@@ -9,9 +9,10 @@ import org.reactivestreams.Publisher
 import org.springframework.stereotype.Component
 
 @Component
-class SubscriptionResolver(eventPublisher: EventPublisher,
-                           userService: UserService,
-                           authService: AuthService) extends GraphQLSubscriptionResolver {
+class SubscriptionResolver(
+  eventPublisher: EventPublisher,
+  authService: AuthService
+) extends GraphQLSubscriptionResolver {
   def usersUpdated(env: DataFetchingEnvironment): Publisher[UserEvent] =
     authService.authenticated(env) { _ => eventPublisher.getUserCreatedPublisher }
 

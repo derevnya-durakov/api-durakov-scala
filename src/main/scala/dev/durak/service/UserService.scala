@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service
 import java.util.UUID
 
 @Service
-class UserService(eventPublisher: ApplicationEventPublisher,
-                  userRepo: ICrudRepository[User],
-                  authRepo: ICrudRepository[Auth]) {
+class UserService(
+  eventPublisher: ApplicationEventPublisher,
+  userRepo: ICrudRepository[User],
+  authRepo: ICrudRepository[Auth]
+) {
   private val lock = new Object
 
   Seq(

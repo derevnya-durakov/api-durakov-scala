@@ -10,31 +10,44 @@ import org.springframework.stereotype.Component
 import scala.jdk.CollectionConverters._
 
 @Component
-class MutationResolver(gameService: GameService,
-                       playerService: UserService,
-                       authService: AuthService) extends GraphQLMutationResolver {
-  def addUser(nickname: String, env: DataFetchingEnvironment): User =
+class MutationResolver(
+  gameService: GameService,
+  playerService: UserService,
+  authService: AuthService
+) extends GraphQLMutationResolver {
+  def addUser(
+    nickname: String,
+    env: DataFetchingEnvironment
+  ): User =
     authService.authenticated(env) { _ => playerService.addUser(nickname) }
 
   def testRestartGame(): Boolean = gameService.testRestartGame()
 
-  def startGame(userIds: java.lang.Iterable[String],
-                env: DataFetchingEnvironment): ExternalGameState =
+  def startGame(
+    userIds: java.lang.Iterable[String],
+    env: DataFetchingEnvironment
+  ): ExternalGameState =
     authService.authenticated(env) { auth =>
       GameService.toExternal(
         gameService.startGame(auth, userIds.asScala.toList), auth.user)
     }
 
-  def attack(gameId: String, card: Card, env: DataFetchingEnvironment): ExternalGameState =
+  def attack(
+    gameId: String,
+    card: Card,
+    env: DataFetchingEnvironment
+  ): ExternalGameState =
     authService.authenticated(env) { auth =>
       GameService.toExternal(
         gameService.attack(auth, gameId, card), auth.user)
     }
 
-  def defend(gameId: String,
-             attackCard: Card,
-             defenceCard: Card,
-             env: DataFetchingEnvironment): ExternalGameState =
+  def defend(
+    gameId: String,
+    attackCard: Card,
+    defenceCard: Card,
+    env: DataFetchingEnvironment
+  ): ExternalGameState =
     authService.authenticated(env) { auth =>
       GameService.toExternal(
         gameService.defend(auth, gameId, attackCard, defenceCard), auth.user)

@@ -11,7 +11,10 @@ import scala.jdk.CollectionConverters._
 
 @Component
 class WsAuthTokenListener extends ApolloSubscriptionConnectionListener {
-  override def onConnect(session: SubscriptionSession, message: OperationMessage): Unit = {
+  override def onConnect(
+    session: SubscriptionSession,
+    message: OperationMessage
+  ): Unit = {
     val payload = message.getPayload
     payload match {
       case payloadMap: util.Map[String, util.Map[String, String]] =>

@@ -4,7 +4,9 @@ import io.reactivex.{ObservableEmitter, ObservableOnSubscribe}
 
 import java.util.concurrent.ExecutorService
 
-abstract class AbstractEmitter[DataType](executor: ExecutorService) extends ObservableOnSubscribe[DataType] {
+abstract class AbstractEmitter[DataType](
+  executor: ExecutorService
+) extends ObservableOnSubscribe[DataType] {
   private var emitter: ObservableEmitter[DataType] = _
 
   override def subscribe(emitter: ObservableEmitter[DataType]): Unit = {

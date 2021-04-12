@@ -16,9 +16,11 @@ import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 
 @Service
-class GameService(eventPublisher: ApplicationEventPublisher,
-                  userService: UserService,
-                  gameRepo: ICrudRepository[GameState]) {
+class GameService(
+  eventPublisher: ApplicationEventPublisher,
+  userService: UserService,
+  gameRepo: ICrudRepository[GameState]
+) {
   private val lock = new Object // todo: separate locks for each game
   // just for testing
   startGame(null, userService.users.slice(0, 3).map(_.id.toString).toList)
@@ -46,8 +48,10 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       .find(_.user.id == auth.user.id)
       .getOrElse(throw new GameException("You are not in the game")))
 
-  private def withGameAndMe[T](auth: Auth, gameId: String)
-                              (action: (GameState, Player) => T): T = {
+  private def withGameAndMe[T](
+    auth: Auth,
+    gameId: String
+  )(action: (GameState, Player) => T): T = {
     withGame(gameId) { game =>
       withMe(auth, game) { me =>
         action(game, me)
@@ -206,9 +210,11 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       }
     }
 
-  private def internalDefendAction(attackCard: Card,
-                                   defenceCard: Card,
-                                   game: GameState): GameState = {
+  private def internalDefendAction(
+    attackCard: Card,
+    defenceCard: Card,
+    game: GameState
+  ): GameState = {
     val round = game.round.map { pair =>
       if (pair.attack == attackCard)
         RoundPair(attackCard, Some(defenceCard))
@@ -372,8 +378,10 @@ class GameService(eventPublisher: ApplicationEventPublisher,
       .flatMap(user => players.find(_.user == user))
       .getOrElse(players.head)
 
-  private def initialDealCards(sourcePlayers: List[Player],
-                               sourceDeck: CardDeck): (List[Player], CardDeck) = {
+  private def initialDealCards(
+    sourcePlayers: List[Player],
+    sourceDeck: CardDeck
+  ): (List[Player], CardDeck) = {
     var deck = sourceDeck
     val players = for (player <- sourcePlayers) yield {
       val (updatedHand, updatedDeck) = deck.fillHand(player.hand, targetHandSize = 6)
@@ -383,9 +391,11 @@ class GameService(eventPublisher: ApplicationEventPublisher,
     (players, deck)
   }
 
-  private def dealCards(sourcePlayers: List[Player],
-                        sourceDeck: CardDeck,
-                        game: GameState): (List[Player], CardDeck) = {
+  private def dealCards(
+    sourcePlayers: List[Player],
+    sourceDeck: CardDeck,
+    game: GameState
+  ): (List[Player], CardDeck) = {
     val playersMap = mutable.Map(sourcePlayers.map(p => (p.user, p)): _*)
     var deck = sourceDeck
     val attacker = findActualPlayer(game.attacker, sourcePlayers)

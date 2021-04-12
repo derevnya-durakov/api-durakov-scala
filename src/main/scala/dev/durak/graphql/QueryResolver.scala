@@ -13,9 +13,11 @@ import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 
 @Component
-class QueryResolver(gameService: GameService,
-                    userService: UserService,
-                    authService: AuthService) extends GraphQLQueryResolver {
+class QueryResolver(
+  gameService: GameService,
+  userService: UserService,
+  authService: AuthService
+) extends GraphQLQueryResolver {
   def users(env: DataFetchingEnvironment): lang.Iterable[User] =
     authService.authenticated(env) { _ => userService.users.asJava }
 
