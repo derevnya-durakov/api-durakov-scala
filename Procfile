@@ -1,0 +1,1 @@
+web: target/universal/stage/bin/api-durakov-scala -Dserver.port=$PORT

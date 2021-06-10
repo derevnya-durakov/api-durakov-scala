@@ -1,0 +1,106 @@
+enum Suit {
+    Clubs
+    Diamonds
+    Hearts
+    Spades
+}
+
+enum Rank {
+    Six
+    Seven
+    Eight
+    Nine
+    Ten
+    Jack
+    Queen
+    King
+    Ace
+}
+
+type Card {
+    suit: Suit!
+    rank: Rank!
+}
+
+input CardInput {
+    suit: Suit!
+    rank: Rank!
+}
+
+type RoundPair {
+    attack: Card!
+    defence: Card
+}
+
+type GameState {
+    id: ID!
+    nonce: Int!
+    trumpSuit: Suit!
+    lastTrump: Card
+    deckSize: Int!
+    discardPileSize: Int!
+    hand: [Card!]!
+    players: [Player!]!
+    round: [RoundPair!]!
+    attacker: Player!
+    defender: Player!
+    isTaking: Boolean!
+    durak: Player
+}
+
+type Player {
+    user: User!
+    handSize: Int!
+    saidBeat: Boolean!
+    done: Int
+}
+
+type User {
+    id: ID!
+    nickname: String!
+}
+
+type Auth {
+    accessToken: ID!
+    user: User!
+}
+
+type UserEvent {
+    name: String!
+    user: User!
+}
+
+type GameEvent {
+    name: String!
+    state: GameState!
+}
+
+type Query {
+    users: [User!]!
+    findUser(id: String!): User
+    accessToken(nickname: String!): String
+    auth: Auth!
+    getGameState(id: ID!): GameState
+}
+
+type Mutation {
+    addUser(nickname: String!): User!
+    startGame(userIds: [ID!]!): GameState!
+    attack(gameId: ID!, card: CardInput!): GameState!
+    defend(gameId: ID!, attackCard: CardInput!, defenceCard: CardInput!): GameState!
+    sayBeat(gameId: ID!): GameState!
+    take(gameId: ID!): GameState!
+    testRestartGame: Boolean!
+    nextGame(gameId: ID!): GameState!
+}
+
+type Subscription {
+    usersUpdated: UserEvent!
+    gameUpdated(id: ID!): GameEvent!
+}
+
+schema {
+    query: Query
+    mutation: Mutation
+    subscription: Subscription
+}
